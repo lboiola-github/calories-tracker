@@ -34,6 +34,8 @@ export default defineConfig({
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_prueba",
         USDA_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/usda`,
         OFF_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/off`,
+        GROQ_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/groq`,
+        GROQ_API_KEY: "clave-de-prueba",
       },
     },
   ],

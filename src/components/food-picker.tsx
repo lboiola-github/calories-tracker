@@ -24,12 +24,15 @@ export function FoodPicker({
   onError,
   createHref,
   label = "Buscar alimento",
+  preparation = null,
 }: {
   initialQuery?: string;
   onPick: (food: FoodSearchHit, units?: PickedUnits) => void;
   onError: (message: string | null) => void;
   createHref?: (query: string) => string;
   label?: string;
+  /** Preparación a usar si se agrega desde una referencia (la que dijo el usuario). */
+  preparation?: string | null;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [hits, setHits] = useState<FoodSearchHit[]>([]);
@@ -86,7 +89,7 @@ export function FoodPicker({
   const addReference = async (c: ReferenceCandidate) => {
     setAdding(`${c.source}:${c.ref}`);
     onError(null);
-    const r = await addReferenceFood({ source: c.source, ref: c.ref, typedName: query.trim() });
+    const r = await addReferenceFood({ source: c.source, ref: c.ref, typedName: query.trim(), preparation });
     setAdding(null);
     if (!r.ok) return onError(r.error);
     pick(r.data.hit, r.data.units);

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { getFoods, searchFoods, type FoodSearchHit } from "@/lib/data/foods";
 import { isIsoDate } from "@/lib/dates";
-import { isMealType, type MealType } from "@/lib/meals";
+import { isMealType, PREPARATIONS, type MealType } from "@/lib/meals";
 import { nutrientsFor, toGrams } from "@/lib/nutrition/calc";
 import { getOffProduct } from "@/lib/references/off";
 import { foodFromReference } from "@/lib/references/to-food";
@@ -39,6 +39,8 @@ const refSchema = z.object({
   source: z.enum(["usda", "off"]),
   ref: z.string().regex(/^\d{1,14}$/),
   typedName: z.string().max(120),
+  // Preparación que dijo el usuario (desde la interpretación); manda sobre la del nombre.
+  preparation: z.enum(PREPARATIONS.map((p) => p.key) as [string, ...string[]]).nullable().optional(),
 });
 
 export type AddedFood = { hit: FoodSearchHit; units: { name: string; grams: number }[] };
@@ -52,7 +54,7 @@ export async function addReferenceFood(input: z.input<typeof refSchema>): Promis
   await requireUser();
   const parsed = refSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
-  const { source, ref, typedName } = parsed.data;
+  const { source, ref, typedName, preparation } = parsed.data;
   const supabase = await createClient();
 
   const toResult = async (id: string): Promise<ActionResult<AddedFood>> => {
@@ -90,7 +92,7 @@ export async function addReferenceFood(input: z.input<typeof refSchema>): Promis
   } catch (e) {
     return { ok: false, error: e instanceof ReferenceError ? e.message : "No se pudo consultar la fuente." };
   }
-  const { units, aliases, ...food } = foodFromReference(candidate, typedName);
+  const { units, aliases, ...food } = foodFromReference(candidate, typedName, preparation);
   const { data: id, error } = await supabase.rpc("save_food", { p_id: null, p_food: food, p_units: units, p_aliases: aliases });
   if (error) {
     if (error.code === "23505") {
@@ -163,7 +165,7 @@ export async function logItems(input: z.input<typeof logSchema>): Promise<Action
     p_items: payload,
     p_input_text: parsed.data.inputText ?? null,
   });
-  if (error) return { ok: false, error: "No se pudo registrar. Tus datos no se perdieron: probá de nuevo." };
+  if (error || !Array.isArray(data?.item_ids)) return { ok: false, error: "No se pudo registrar. Tus datos no se perdieron: probá de nuevo." };
   revalidatePath("/", "layout");
   return { ok: true, data: { itemIds: data.item_ids as string[], replayed: Boolean(data.replayed) } };
 }

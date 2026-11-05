@@ -29,6 +29,7 @@ const send = (res, status, body) => {
 
 // Alimentos guardados con save_food durante las pruebas (para leerlos de vuelta por id).
 const savedFoods = new Map();
+const norm = (t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 const uploads = [];
 const CHICKEN = {
   fdcId: 171477, dataType: "SR Legacy", description: "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
@@ -78,6 +79,15 @@ createServer(async (req, res) => {
       });
       return send(res, 200, id);
     }
+    if (url.pathname === "/rest/v1/rpc/search_foods") {
+      // Solo alimentos guardados en esta corrida (las demás pruebas parten de un catálogo vacío).
+      const q = norm(json.p_query ?? "");
+      const hits = [...savedFoods.values()].filter((f) => norm(f.name).includes(q) && q.length >= 3);
+      return send(res, 200, hits.map((f) => ({ ...f, matched: f.name, score: 0.9 })));
+    }
+    if (url.pathname === "/rest/v1/rpc/log_meal_items") {
+      return send(res, 200, { item_ids: json.p_items.map((_, i) => `55555555-5555-4555-8555-${String(i + 1).padStart(12, "0")}`), replayed: false });
+    }
     if (url.pathname.startsWith("/rest/v1/rpc/")) return send(res, 200, null);
     const ids = /^in\.\((.*)\)$|^eq\.(.*)$/.exec(url.searchParams.get("id") ?? "");
     if (url.pathname === "/rest/v1/foods" && req.method === "GET" && ids) {
@@ -94,6 +104,15 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/storage/v1/object/weight-photos/") && req.method === "POST") {
     uploads.push(url.pathname.replace("/storage/v1/object/weight-photos/", ""));
     return send(res, 200, { Key: url.pathname });
+  }
+  // Groq simulado: interpreta solo los mensajes de prueba con lentejas.
+  if (url.pathname === "/groq/chat/completions" && req.method === "POST") {
+    const text = json.messages?.at(-1)?.content ?? "";
+    const items = /lentejas/i.test(text)
+      ? [{ fragment: "200 g de lentejas hervidas", food: "lentejas", quantity: 200, unit: "g", preparation: "boiled" }]
+      : [];
+    const content = JSON.stringify({ meal_type: /almor/i.test(text) ? "lunch" : null, day: null, items });
+    return send(res, 200, { choices: [{ message: { content } }] });
   }
   if (url.pathname === "/__mock/uploads") return send(res, 200, uploads);
   // Referencias nutricionales simuladas (USDA_BASE_URL y OFF_BASE_URL apuntan acá).
