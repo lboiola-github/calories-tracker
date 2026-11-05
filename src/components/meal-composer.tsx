@@ -12,6 +12,7 @@ import {
 import { logItems } from "@/app/(app)/comidas/actions";
 import {
   interpretMeal,
+  transcribeMeal,
   type Interpreted,
 } from "@/app/(app)/comidas/interpret-actions";
 import {
@@ -25,6 +26,7 @@ import { flushSync } from "react-dom";
 import { CloseIcon, MicIcon, PlusIcon, SendIcon } from "@/components/ui/icons";
 import { readLocal, writeLocal } from "@/lib/safe-storage";
 import { useKeyboardInset } from "@/lib/use-keyboard-inset";
+import { useRecorder } from "@/lib/use-recorder";
 
 const DRAFT_KEY = "meal-composer-draft";
 
@@ -35,10 +37,11 @@ const EXAMPLES = [
 ];
 
 /**
- * Campo de registro en lenguaje natural.
- * - Se abre y enfoca en el mismo toque (requisito de iOS para mostrar el teclado).
- * - Pensado para el dictado del teclado: sin botón de grabación propio.
- * - El borrador se guarda localmente para no perder un dictado largo.
+ * Registro en lenguaje natural, por voz primero:
+ * - Tocar + empieza a grabar en el mismo toque. Al dejar de hablar se corta solo, se transcribe,
+ *   se interpreta y se registra (o se pide revisar lo que falte).
+ * - Si el micrófono no está disponible, queda el campo de texto (y el dictado del teclado).
+ * - El borrador se guarda localmente para no perder un texto largo.
  */
 export function MealComposer() {
   const [open, setOpen] = useState(false);
@@ -52,20 +55,44 @@ export function MealComposer() {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyboardInset = useKeyboardInset(open);
+  const [mode, setMode] = useState<"voice" | "text">("voice");
+  const [transcribing, setTranscribing] = useState(false);
 
+  const reset = () => {
+    setNotice(null);
+    setReview(null);
+    setLogged(null);
+    setOpen(true);
+  };
+
+  /** Toque en +: abre y empieza a grabar en el mismo gesto (iOS lo exige para el micrófono). */
   const openComposer = () => {
-    // flushSync monta el textarea antes de enfocarlo, dentro del mismo gesto del usuario.
+    reset();
+    setText("");
+    setMode("voice");
+    void recorder.start().then((ok) => {
+      if (!ok) {
+        setMode("text");
+        setText(readLocal(DRAFT_KEY) ?? "");
+        setNotice(
+          "No se pudo usar el micrófono: escribí o usá el dictado del teclado.",
+        );
+      }
+    });
+  };
+
+  /** Pasar a escribir (dentro de un toque, así iOS muestra el teclado). */
+  const switchToText = () => {
+    recorder.cancel();
     flushSync(() => {
+      setMode("text");
       setText(readLocal(DRAFT_KEY) ?? "");
-      setNotice(null);
-      setReview(null);
-      setLogged(null);
-      setOpen(true);
     });
     textareaRef.current?.focus();
   };
 
   const close = () => {
+    recorder.cancel();
     textareaRef.current?.blur();
     setOpen(false);
   };
@@ -99,9 +126,14 @@ export function MealComposer() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim() || pending || review || logged) return;
-    setNotice(null);
     textareaRef.current?.blur();
+    run(text);
+  };
+
+  const run = (input: string) => {
+    setNotice(null);
     start(async () => {
+      const text = input;
       const r = await interpretMeal(text);
       if (!r.ok) return setNotice(r.error);
       const res = r.data;
@@ -136,6 +168,30 @@ export function MealComposer() {
       setReview(res);
     });
   };
+
+  const recorder = useRecorder((blob) => {
+    setTranscribing(true);
+    const fd = new FormData();
+    fd.append(
+      "audio",
+      new File([blob], "dictado", { type: blob.type || "audio/mp4" }),
+    );
+    transcribeMeal(fd)
+      .then((r) => {
+        if (!r.ok) {
+          setMode("text");
+          return setNotice(r.error);
+        }
+        onChange(r.data.text);
+        setMode("text");
+        run(r.data.text);
+      })
+      .catch(() => {
+        setMode("text");
+        setNotice("No se pudo transcribir. Escribilo.");
+      })
+      .finally(() => setTranscribing(false));
+  });
 
   return (
     <>
@@ -188,7 +244,46 @@ export function MealComposer() {
               </button>
             </div>
 
-            {logged ? (
+            {mode === "voice" && !logged && !review ? (
+              <section
+                aria-label="Grabando"
+                className="flex flex-col items-center pb-2 pt-2"
+              >
+                <button
+                  type="button"
+                  onClick={recorder.stop}
+                  disabled={recorder.state !== "recording"}
+                  aria-label="Listo, terminar de grabar"
+                  className="relative grid size-28 place-items-center rounded-full bg-accent text-accent-ink"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full bg-accent/30 transition-transform duration-100"
+                    style={{ transform: `scale(${1 + recorder.level * 0.6})` }}
+                  />
+                  <MicIcon className="relative size-10" strokeWidth={2} />
+                </button>
+                <p role="status" className="mt-4 text-[17px] font-medium">
+                  {transcribing
+                    ? "Transcribiendo…"
+                    : recorder.state === "starting"
+                      ? "Activando micrófono…"
+                      : "Te escucho. Contá qué comiste."}
+                </p>
+                <p className="mt-1 text-sm text-ink-3">
+                  {transcribing
+                    ? "Un segundo."
+                    : "Se corta solo cuando dejás de hablar, o tocá el micrófono."}
+                </p>
+                <button
+                  type="button"
+                  onClick={switchToText}
+                  className="mt-5 text-sm font-medium text-accent"
+                >
+                  Prefiero escribir
+                </button>
+              </section>
+            ) : logged ? (
               <LoggedCard
                 summary={logged}
                 onAccept={close}
