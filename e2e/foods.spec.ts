@@ -43,7 +43,7 @@ test("inicio muestra las comidas del día y el campo + ofrece carga manual", asy
   for (const meal of ["Desayuno", "Almuerzo", "Merienda", "Cena"]) {
     await expect(page.getByRole("region", { name: meal })).toBeVisible();
   }
-  await expect(page.getByTestId("consumed")).toHaveText("0 kcal consumidas");
+  await expect(page.getByTestId("consumed")).toHaveText("0 kcal");
   await page.getByRole("button", { name: "Registrar comida" }).click();
   await page.getByRole("link", { name: "Cargar a mano" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Registrar" })).toBeVisible();

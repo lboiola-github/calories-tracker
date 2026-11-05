@@ -74,9 +74,9 @@ export function MealComposer() {
         type="button"
         onClick={openComposer}
         aria-label="Registrar comida"
-        className="-mt-5 mb-1 grid size-14 place-items-center rounded-full bg-accent text-accent-ink shadow-[0_8px_24px_-6px_var(--accent)] transition-transform active:scale-95"
+        className="-mt-8 mb-1 grid size-16 place-items-center rounded-full bg-accent text-accent-ink shadow-[0_10px_30px_-8px_var(--accent)] ring-4 ring-bg transition-transform active:scale-95"
       >
-        <PlusIcon className="size-7" strokeWidth={2.2} />
+        <PlusIcon className="size-8" strokeWidth={2.4} />
       </button>
 
       {open && (
@@ -85,7 +85,7 @@ export function MealComposer() {
             type="button"
             aria-label="Cerrar"
             onClick={close}
-            className="animate-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+            className="animate-fade-in absolute inset-0 bg-black/60 backdrop-blur-[2px]"
           />
           <form
             onSubmit={onSubmit}

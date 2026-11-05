@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Calorías",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false, email: false, address: false },
   icons: {
@@ -26,10 +26,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f5f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0c0d" },
-  ],
+  themeColor: "#0e0f11",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

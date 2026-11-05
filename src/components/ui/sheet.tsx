@@ -21,7 +21,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="Cerrar" onClick={onClose} className="animate-fade-in absolute inset-0 bg-black/30" />
+      <button type="button" aria-label="Cerrar" onClick={onClose} className="animate-fade-in absolute inset-0 bg-black/60" />
       <div
         style={{ bottom: inset }}
         className={`animate-sheet-in absolute inset-x-0 mx-auto max-h-[85dvh] max-w-md overflow-y-auto rounded-t-[28px] bg-surface px-5 pt-4 shadow-2xl ${
