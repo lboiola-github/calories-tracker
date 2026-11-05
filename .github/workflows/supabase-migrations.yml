@@ -24,12 +24,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verificar secretos
+        id: secrets
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ] || [ -z "$SUPABASE_PROJECT_ID" ]; then
-            echo "::error::Faltan secretos de Supabase en el repositorio."; exit 1
+            echo "::warning::Sin secretos de Supabase: las migraciones se aplican por otra vía."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: supabase/setup-cli@v1
+      - if: steps.secrets.outputs.ready == 'true'
+        uses: supabase/setup-cli@v1
         with:
           version: 2.122.1
-      - run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
-      - run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - if: steps.secrets.outputs.ready == 'true'
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+      - if: steps.secrets.outputs.ready == 'true'
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
