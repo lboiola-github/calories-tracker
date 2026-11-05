@@ -27,12 +27,12 @@ const capitalize = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
  * buscó (en español); el de la fuente queda como alias. La preparación sale primero de lo que
  * escribió el usuario y, si no dice, de la descripción de la fuente.
  */
-export function foodFromReference(c: ReferenceCandidate, typedName: string) {
+export function foodFromReference(c: ReferenceCandidate, typedName: string, preparation?: string | null) {
   const name = capitalize(typedName.trim().replace(/\s+/g, " ")).slice(0, 120) || c.name.slice(0, 120);
   const mismatch = c.energyMismatch != null && c.energyMismatch > 0.15;
   return {
     name,
-    preparation: preparationFromText(typedName, c.name),
+    preparation: preparation || preparationFromText(typedName, c.name),
     brand: c.brand?.slice(0, 80) ?? "",
     kcal_per_100g: c.per100.kcal,
     protein_per_100g: c.per100.protein,

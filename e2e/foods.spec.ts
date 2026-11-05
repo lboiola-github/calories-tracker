@@ -95,9 +95,10 @@ test("recetas: opcionales, con ingredientes de USDA y vista previa por peso fina
   await expect(page.getByText("Todavía no tenés recetas")).toBeVisible();
   await page.getByRole("link", { name: "Nueva" }).click();
   await page.getByLabel("Nombre").fill("Pollo al horno");
-  await page.getByLabel("Agregar ingrediente").fill("pechuga de pollo");
+  // Nombre único: el simulador comparte el catálogo entre pruebas.
+  await page.getByLabel("Agregar ingrediente").fill("carne para horno");
   await page.getByRole("button", { name: /^Agregar Chicken, broilers/ }).click();
-  await page.getByLabel("Cantidad de Pechuga de pollo").fill("1000");
+  await page.getByLabel("Cantidad de Carne para horno").fill("1000");
   await expect(page.getByTestId("recipe-total")).toHaveText("1.650 kcal");
   await expect(page.getByTestId("recipe-per100")).toHaveText("165 kcal");
   await page.getByLabel("Peso final (g)").fill("750");
