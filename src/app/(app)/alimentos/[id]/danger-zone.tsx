@@ -27,7 +27,7 @@ export function FoodDangerZone({ id, archived }: { id: string; archived: boolean
               type="button"
               disabled={pending}
               onClick={() => start(() => deleteFood(id))}
-              className="h-11 rounded-xl bg-danger font-semibold text-white"
+              className="h-11 rounded-xl bg-danger font-semibold text-bg"
             >
               Eliminar
             </button>

@@ -96,6 +96,26 @@ export async function saveFood(_prev: FoodFormState, formData: FormData): Promis
     if (error.code === "23505") return { error: "Ya tenés un alimento con ese nombre y preparación.", fieldErrors: { name: "Duplicado" } };
     return { error: "No se pudo guardar el alimento.", fieldErrors: {} };
   }
+  // Al editar, quitar las unidades y alias que el usuario sacó del formulario.
+  if (v.id) {
+    const norm = (t: string) => t.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+    const keepUnits = new Set(v.units.map((u) => norm(u.name)));
+    const keepAliases = new Set(v.aliases.map(norm));
+    const [{ data: units }, { data: aliases }] = await Promise.all([
+      supabase.from("food_units").select("id, name_normalized").eq("food_id", v.id),
+      supabase.from("food_aliases").select("id, alias_normalized").eq("food_id", v.id),
+    ]);
+    const staleUnits = (units ?? []).filter((u) => !keepUnits.has(u.name_normalized)).map((u) => u.id);
+    const staleAliases = (aliases ?? []).filter((a) => !keepAliases.has(a.alias_normalized)).map((a) => a.id);
+    const results = await Promise.all([
+      staleUnits.length ? supabase.from("food_units").delete().in("id", staleUnits) : null,
+      staleAliases.length ? supabase.from("food_aliases").delete().in("id", staleAliases) : null,
+    ]);
+    if (results.some((r) => r?.error)) {
+      return { error: "Se guardó el alimento, pero no se pudieron quitar algunas unidades o alias. Probá de nuevo.", fieldErrors: {} };
+    }
+  }
+
   revalidatePath("/alimentos");
   const back = String(formData.get("returnTo") ?? "");
   redirect(back.startsWith("/") && !back.startsWith("//") ? back : `/alimentos/${data}`);

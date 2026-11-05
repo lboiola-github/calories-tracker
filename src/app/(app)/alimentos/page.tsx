@@ -26,10 +26,10 @@ export default async function FoodsPage({ searchParams }: { searchParams: Promis
         }
       />
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-surface-2 p-1 text-center text-[15px] font-medium">
-        <Link href="/alimentos" className={`rounded-xl py-2 ${!archived ? "bg-surface shadow-sm" : "text-ink-2"}`}>
+        <Link href="/alimentos" className={`rounded-xl py-2 ${!archived ? "bg-track text-ink" : "text-ink-2"}`}>
           Activos
         </Link>
-        <Link href="/alimentos?archivados=1" className={`rounded-xl py-2 ${archived ? "bg-surface shadow-sm" : "text-ink-2"}`}>
+        <Link href="/alimentos?archivados=1" className={`rounded-xl py-2 ${archived ? "bg-track text-ink" : "text-ink-2"}`}>
           Archivados
         </Link>
       </div>

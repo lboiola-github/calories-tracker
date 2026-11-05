@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { findFoods, foodUnits, logItems } from "@/app/(app)/comidas/actions";
+import { findReferences } from "@/app/(app)/alimentos/reference-actions";
+import { addReferenceFood, findFoods, foodUnits, logItems } from "@/app/(app)/comidas/actions";
 import type { FoodSearchHit } from "@/lib/data/foods";
 import { formatGrams, formatKcal, parseDecimal } from "@/lib/format";
 import { MEAL_TYPES, preparationLabel, type MealType } from "@/lib/meals";
 import { newOperationId } from "@/lib/op-id";
+import type { ReferenceSearchResult } from "@/lib/references/search";
+import type { ReferenceCandidate } from "@/lib/references/types";
+
+const SOURCE_LABEL = { usda: "USDA", off: "Open Food Facts" } as const;
 
 type Line = { food: FoodSearchHit; quantity: string; unit: string; units: { name: string; grams: number }[] };
 
@@ -26,6 +31,9 @@ export function ManualLogger({ date, today, initialMeal, initialQuery }: { date:
   const [pending, start] = useTransition();
   const opId = useRef(newOperationId());
   const seq = useRef(0);
+  // Referencias externas (USDA / Open Food Facts) para lo que no está en el catálogo.
+  const [refs, setRefs] = useState<{ query: string; result: ReferenceSearchResult | null } | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query.trim();
@@ -39,24 +47,51 @@ export function ManualLogger({ date, today, initialMeal, initialQuery }: { date:
       const r = await findFoods(q);
       if (mine !== seq.current) return; // llegó una búsqueda más nueva
       setSearching(false);
-      if (r.ok) setHits(r.data);
-      else setError(r.error);
-    }, 250);
+      if (r.ok) {
+        setHits(r.data);
+        // Sin resultados en el catálogo: buscar directamente en las referencias.
+        if (r.data.length === 0 && q.length >= 3) searchRefs(q, mine);
+      } else setError(r.error);
+    }, 400);
     return () => clearTimeout(t);
   }, [query]);
 
+  async function searchRefs(q: string, mine = seq.current) {
+    setRefs({ query: q, result: null });
+    let result: ReferenceSearchResult;
+    try {
+      result = await findReferences(q);
+    } catch {
+      result = { candidates: [], errors: [{ source: "usda", message: "No se pudo buscar. Probá de nuevo." }], usdaQuery: null };
+    }
+    if (mine !== seq.current) return;
+    setRefs({ query: q, result });
+  }
+
   const totalKcal = useMemo(() => lines.reduce((acc, l) => acc + lineKcal(l), 0), [lines]);
 
-  const add = async (food: FoodSearchHit) => {
+  const add = async (food: FoodSearchHit, knownUnits?: { name: string; grams: number }[]) => {
     setQuery("");
     setHits([]);
+    setRefs(null);
     opId.current = newOperationId(); // cambió el contenido: es un registro distinto
     if (lines.some((l) => l.food.id === food.id)) return;
-    setLines((ls) => [...ls, { food, quantity: "", unit: "g", units: [] }]);
+    setLines((ls) => [...ls, { food, quantity: "", unit: "g", units: knownUnits ?? [] }]);
+    if (knownUnits) return;
     const r = await foodUnits(food.id);
     if (r.ok && r.data.length > 0) {
       setLines((ls) => ls.map((l) => (l.food.id === food.id ? { ...l, units: r.data } : l)));
     }
+  };
+
+  const addReference = async (c: ReferenceCandidate) => {
+    const key = `${c.source}:${c.ref}`;
+    setAdding(key);
+    setError(null);
+    const r = await addReferenceFood({ source: c.source, ref: c.ref, typedName: query.trim() });
+    setAdding(null);
+    if (!r.ok) return setError(r.error);
+    await add(r.data.hit, r.data.units);
   };
 
   const submit = () => {
@@ -122,18 +157,18 @@ export function ManualLogger({ date, today, initialMeal, initialQuery }: { date:
                 </button>
               </li>
             ))}
-            {!searching && hits.length === 0 && (
-              <li className="px-4 py-3 text-[15px] text-ink-2">
-                No está en tu catálogo.{" "}
-                <Link
-                  href={`/alimentos/nuevo?nombre=${encodeURIComponent(query.trim())}&volver=${encodeURIComponent(returnTo)}`}
-                  className="font-medium text-accent"
-                >
-                  Crear “{query.trim()}”
-                </Link>
-              </li>
-            )}
+            {!searching && hits.length === 0 && <li className="px-4 py-3 text-[15px] text-ink-2">No está en tu catálogo.</li>}
           </ul>
+        )}
+        {query.trim() && !searching && (
+          <ReferenceResults
+            state={refs?.query === query.trim() ? refs : null}
+            adding={adding}
+            onSearch={() => searchRefs(query.trim())}
+            onPick={addReference}
+            createHref={`/alimentos/nuevo?nombre=${encodeURIComponent(query.trim())}&volver=${encodeURIComponent(returnTo)}`}
+            createLabel={`Crear “${query.trim()}” a mano`}
+          />
         )}
       </div>
 
@@ -219,4 +254,81 @@ function lineKcal(l: Line): number {
   if (q == null || q <= 0) return 0;
   const grams = l.unit === "g" ? q : q * (l.units.find((u) => u.name === l.unit)?.grams ?? 0);
   return (grams * l.food.kcalPer100g) / 100;
+}
+
+function ReferenceResults({
+  state,
+  adding,
+  onSearch,
+  onPick,
+  createHref,
+  createLabel,
+}: {
+  state: { query: string; result: ReferenceSearchResult | null } | null;
+  adding: string | null;
+  onSearch: () => void;
+  onPick: (c: ReferenceCandidate) => void;
+  createHref: string;
+  createLabel: string;
+}) {
+  const create = (
+    <Link href={createHref} className="block px-4 py-3 text-[15px] font-medium text-accent">
+      {createLabel}
+    </Link>
+  );
+  if (!state) {
+    return (
+      <div className="mt-2 overflow-hidden rounded-2xl bg-surface">
+        <button type="button" onClick={onSearch} className="block w-full px-4 py-3 text-left text-[15px] font-medium text-accent">
+          Buscar en USDA y Open Food Facts
+        </button>
+        <div className="border-t border-line">{create}</div>
+      </div>
+    );
+  }
+  const { result } = state;
+  return (
+    <section aria-label="Referencias" className="mt-2 overflow-hidden rounded-2xl bg-surface">
+      <p className="px-4 pt-3 text-xs font-medium uppercase tracking-wider text-ink-3">De USDA y Open Food Facts</p>
+      {!result && <p className="px-4 py-3 text-[15px] text-ink-2">Buscando referencias…</p>}
+      {result && (
+        <>
+          {result.usdaQuery && <p className="px-4 pt-1 text-sm text-ink-3">En USDA se buscó “{result.usdaQuery}”. Elegí la variante que corresponde a cómo lo pesás.</p>}
+          <ul className="divide-y divide-line">
+            {result.candidates.map((c) => {
+              const key = `${c.source}:${c.ref}`;
+              return (
+                <li key={key}>
+                  <button
+                    type="button"
+                    disabled={adding != null}
+                    onClick={() => onPick(c)}
+                    aria-label={`Agregar ${c.name}`}
+                    className="flex w-full justify-between gap-3 px-4 py-3 text-left active:bg-surface-2 disabled:opacity-60"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-medium leading-snug">{c.name}</span>
+                      <span className="block truncate text-sm text-ink-3">
+                        {[SOURCE_LABEL[c.source], c.brand, c.source === "off" ? "colaborativo" : null].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                    <span className="tabular shrink-0 text-sm text-ink-2">
+                      {adding === key ? "Agregando…" : `${formatKcal(c.per100.kcal)} kcal/100 g`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {result.candidates.length === 0 && <li className="px-4 py-3 text-[15px] text-ink-2">Sin resultados en las referencias.</li>}
+          </ul>
+          {result.errors.map((e) => (
+            <p key={e.source} className="px-4 pb-2 text-sm text-ink-3">
+              {SOURCE_LABEL[e.source]}: {e.message}
+            </p>
+          ))}
+        </>
+      )}
+      <div className="border-t border-line">{create}</div>
+    </section>
+  );
 }

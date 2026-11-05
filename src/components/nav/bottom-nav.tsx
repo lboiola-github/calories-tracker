@@ -22,7 +22,7 @@ export function BottomNav() {
         href={href}
         aria-current={active ? "page" : undefined}
         className={`flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium transition-colors ${
-          active ? "text-ink" : "text-ink-3"
+          active ? "text-accent" : "text-ink-3"
         }`}
       >
         <Icon className="size-6" strokeWidth={active ? 2.1 : 1.75} />
@@ -34,7 +34,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/85 pb-safe backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/90 pb-safe backdrop-blur-xl"
     >
       <div className="mx-auto flex max-w-md items-end px-2">
         {left.map(renderItem)}

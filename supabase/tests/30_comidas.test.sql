@@ -178,12 +178,16 @@ begin
   end;
   select count(*) into n from public.foods where name = 'Tostada'; assert n = 0, 'no debe quedar el alimento';
 
-  -- Actualizar reemplaza unidades y alias.
+  -- Actualizar agrega o ajusta unidades (las que se quitan las borra la app con RLS).
   perform public.save_food(v_id,
     '{"name":"Huevo","preparation":"boiled","kcal_per_100g":155,"protein_per_100g":12.6,"carbs_per_100g":1.1,"fat_per_100g":10.6,"validated":true}',
-    '[{"name":"unidad grande","grams":60}]', '[]');
-  select count(*) into n from public.food_units where food_id = v_id; assert n = 1, 'reemplazo de unidades';
-  select count(*) into n from public.food_aliases where food_id = v_id; assert n = 0, 'reemplazo de alias';
+    '[{"name":"unidad grande","grams":60},{"name":"Unidad","grams":52}]', '[]');
+  select count(*) into n from public.food_units where food_id = v_id; assert n = 2, 'agrega unidades nuevas';
+  select count(*) into n from public.food_units where food_id = v_id and name_normalized = 'unidad' and grams = 52;
+  assert n = 1, 'actualiza los gramos de una unidad existente';
+  delete from public.food_units where food_id = v_id and name_normalized = 'unidad grande';
+  select count(*) into n from public.food_units where food_id = v_id; assert n = 1, 'el dueño puede quitar unidades';
+  select count(*) into n from public.food_aliases where food_id = v_id; assert n = 1, 'el alias se conserva';
 
   -- D no puede editar el alimento de C.
   perform tests.as_user(v_d);

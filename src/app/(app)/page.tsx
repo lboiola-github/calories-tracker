@@ -20,7 +20,7 @@ export default async function DashboardPage() {
         eyebrow={`Hoy, ${formatLongDate(state.today)}`}
         title="Inicio"
         action={
-          <Link href="/ajustes" aria-label="Configuración" className="mb-1 grid size-10 place-items-center rounded-full bg-surface text-ink-2 shadow-sm">
+          <Link href="/ajustes" aria-label="Configuración" className="mb-1 grid size-10 place-items-center rounded-full bg-surface text-ink-2">
             <SettingsIcon className="size-5" />
           </Link>
         }
