@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { listFoods } from "@/lib/data/foods";
 import { createClient } from "@/lib/supabase/server";
+import { CatalogTabs } from "./catalog-tabs";
 import { FoodList } from "./food-list";
 
 export const metadata = { title: "Alimentos y recetas" };
@@ -25,6 +26,7 @@ export default async function FoodsPage({ searchParams }: { searchParams: Promis
           </Link>
         }
       />
+      <CatalogTabs current="alimentos" />
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-surface-2 p-1 text-center text-[15px] font-medium">
         <Link href="/alimentos" className={`rounded-xl py-2 ${!archived ? "bg-track text-ink" : "text-ink-2"}`}>
           Activos
