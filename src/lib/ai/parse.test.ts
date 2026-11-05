@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mealFromText,
   articleBeforeFood,
   numbersIn,
   sanitizeInterpretation,
@@ -162,6 +163,21 @@ describe("sanitizeInterpretation", () => {
     expect(articleBeforeFood("puré", src)).toBeNull();
     expect(articleBeforeFood("pollo", src)).toBeNull();
     expect(articleBeforeFood("queso", "un poco de queso")).toBeNull();
+  });
+
+  it("si el modelo no marca la comida, la toma del texto", () => {
+    expect(mealFromText("ayer a la noche comi 3 porciones de pizza")).toBe(
+      "dinner",
+    );
+    expect(mealFromText("a la manana un cafe")).toBe("breakfast");
+    expect(mealFromText("al mediodia arroz")).toBe("lunch");
+    expect(mealFromText("cenamos fideos")).toBe("dinner");
+    expect(mealFromText("200 g de arroz")).toBeNull();
+    const out = sanitizeInterpretation(
+      { meal_type: null, day: "yesterday", items: [] },
+      "ayer a la noche comí pizza",
+    );
+    expect(out.mealType).toBe("dinner");
   });
 
   it("si el fragmento no es del mensaje, verifica contra el mensaje entero", () => {

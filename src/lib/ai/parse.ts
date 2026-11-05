@@ -215,6 +215,16 @@ export function articleBeforeFood(
   return { quantity: 1, unit: m[1] ?? "unidad" };
 }
 
+/** Comida dicha en el texto cuando el modelo no la marcó ("ayer a la noche" → cena). */
+export function mealFromText(source: string): MealType | null {
+  const t = ` ${source} `;
+  if (/\b(desayun\w*|a la manana|de manana)\b/.test(t)) return "breakfast";
+  if (/\b(almor\w*|almuerzo|al mediodia)\b/.test(t)) return "lunch";
+  if (/\b(meriend\w*|merende|a la tarde)\b/.test(t)) return "snack";
+  if (/\b(cen[aeé]\w*|a la noche|de noche)\b/.test(t)) return "dinner";
+  return null;
+}
+
 /** Valida y limpia la respuesta del modelo. Lanza si no cumple el esquema. */
 export function sanitizeInterpretation(
   raw: unknown,
@@ -262,7 +272,7 @@ export function sanitizeInterpretation(
     items.push({ fragment, food, quantity, unit, preparation: prep, note });
   }
   return {
-    mealType: isMealType(r.meal_type) ? r.meal_type : null,
+    mealType: isMealType(r.meal_type) ? r.meal_type : mealFromText(source),
     day: r.day,
     items,
   };
