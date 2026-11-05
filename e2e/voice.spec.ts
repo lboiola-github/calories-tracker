@@ -60,7 +60,9 @@ test("estado público de la IA: sin sesión, sin secretos, con prueba real de tr
   expect(JSON.stringify(body)).not.toContain("clave-de-prueba");
 });
 
-test("la evaluación en producción exige token", async ({ request }) => {
-  expect((await request.get("/api/ia/eval")).status()).toBe(404);
-  expect((await request.get("/api/ia/eval?t=otro")).status()).toBe(404);
+test("la evaluación en producción solo acepta tandas fijas", async ({
+  request,
+}) => {
+  expect((await request.get("/api/ia/eval")).status()).toBe(400);
+  expect((await request.get("/api/ia/eval?tanda=9")).status()).toBe(400);
 });
