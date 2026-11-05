@@ -42,10 +42,10 @@ export const INTERPRET_SCHEMA = {
 
 export const SYSTEM_PROMPT = `Sos un extractor de datos para una app de registro de comidas en español rioplatense.
 Del mensaje del usuario extraé SOLO lo que dice explícitamente. Respondé con JSON según el esquema.
-- items: un elemento por alimento o bebida mencionada.
+- items: un elemento por alimento o bebida mencionada. Separá guarniciones y agregados unidos por "con" ("milanesa con puré" → milanesa y puré; "pan con queso untable" → pan y queso untable), salvo que sea el nombre de un solo plato o bebida ("café con leche", "fideos con tuco").
   - fragment: la parte exacta del mensaje que habla de ese alimento, copiada textual.
   - food: el nombre del alimento en español, en singular y sin cantidad (ej. "pechuga de pollo", "tostada", "ensalada de lechuga y tomate").
-  - quantity: el número que el usuario dijo (ej. "230 g" → 230, "dos huevos" → 2, "media taza" → 0.5). Si no dijo cantidad, null. NUNCA estimes ni completes cantidades.
+  - quantity: el número que el usuario dijo (ej. "230 g" → 230, "dos huevos" → 2, "media taza" → 0.5, "una manzana" → 1, "un vaso de leche" → 1). Si no dijo cantidad, null. NUNCA estimes ni completes cantidades.
   - unit: la unidad tal como la dijo ("g", "kg", "ml", "taza", "cucharada", "rebanada", "unidad"...). Para cosas contadas sin unidad ("dos huevos"), "unidad". Si no hay cantidad, null.
   - preparation: raw (crudo), cooked (cocido), boiled (hervido), grilled (plancha/grill), baked (al horno), roasted (asado), fried (frito), steamed (al vapor), o null si no lo dice.
 - meal_type: breakfast (desayuno), lunch (almuerzo), snack (merienda), dinner (cena), other (colación/snack), o null si no lo dice.
@@ -131,6 +131,69 @@ export function numbersIn(text: string): number[] {
   return out;
 }
 
+/** La palabra justo antes del fragmento (como palabra completa) en el mensaje, o "". */
+export function wordBefore(source: string, fragment: string): string {
+  if (!fragment) return "";
+  const esc = fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const m = source.match(
+    new RegExp(`(?:^|[\\s,;:.])([a-z0-9]+)[\\s,;:.]+${esc}(?![a-z0-9])`),
+  );
+  return m?.[1] ?? "";
+}
+
+const VAGUE = new Set([
+  "poco",
+  "poquito",
+  "toque",
+  "chorro",
+  "chorrito",
+  "pizca",
+  "par",
+  "monton",
+  "bocado",
+]);
+const UNIT_WORDS = new Set([
+  "vaso",
+  "taza",
+  "pocillo",
+  "plato",
+  "porcion",
+  "rebanada",
+  "feta",
+  "cucharada",
+  "cucharadita",
+  "lata",
+  "botella",
+  "paquete",
+  "sobre",
+  "pote",
+  "rodaja",
+  "trozo",
+  "pedazo",
+  "bol",
+  "copa",
+]);
+
+/** Si el fragmento (o la palabra justo anterior) es "un/una/uno + alimento", devuelve cantidad 1. */
+export function articleQuantity(
+  fragment: string,
+  source: string,
+): { quantity: number; unit: string } | null {
+  const f = norm(fragment);
+  const prev = wordBefore(source, f);
+  const words = (/^(un|una|uno)\b/.test(f) ? f : `${prev} ${f}`).split(" ");
+  if (
+    !["un", "una", "uno"].includes(words[0]) ||
+    !words[1] ||
+    VAGUE.has(words[1])
+  )
+    return null;
+  // "un cuarto", "una docena", "uno y medio" ya los cubren las cantidades explícitas.
+  if (words[1] in WORDS || words[1] === "y") return null;
+  const unit = UNIT_WORDS.has(words[1]) ? words[1] : "unidad";
+  return { quantity: 1, unit };
+}
+
 /** Valida y limpia la respuesta del modelo. Lanza si no cumple el esquema. */
 export function sanitizeInterpretation(
   raw: unknown,
@@ -154,9 +217,7 @@ export function sanitizeInterpretation(
         numbersIn(t).some((n) => Math.abs(n - q) < 1e-9);
       // El modelo a veces deja afuera el artículo ("vaso de leche" en "un vaso de leche"):
       // se acepta también la palabra inmediatamente anterior al fragmento, y nada más.
-      const at = source.indexOf(norm(fragment));
-      const prev =
-        at > 0 ? (source.slice(0, at).trim().split(" ").at(-1) ?? "") : "";
+      const prev = wordBefore(source, norm(fragment));
       const ok =
         q > 0 &&
         q <= 10000 &&
@@ -166,7 +227,12 @@ export function sanitizeInterpretation(
         quantity = null;
         unit = null;
       }
-    } else unit = null;
+    } else {
+      unit = null;
+      // "una manzana", "un té", "un vaso de leche": el artículo es la cantidad (1), y sale del texto.
+      const one = articleQuantity(fragment, source);
+      if (one) ({ quantity, unit } = one);
+    }
     const prep =
       it.preparation && PREPARATIONS.some((p) => p.key === it.preparation)
         ? it.preparation
