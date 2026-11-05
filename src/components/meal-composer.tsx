@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { CloseIcon, MicIcon, PlusIcon, SendIcon } from "@/components/ui/icons";
@@ -63,8 +64,8 @@ export function MealComposer() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    // Etapa 0: solo interfaz. El envío se conecta en las etapas 3 (manual) y 6 (IA).
-    setNotice("Todavía no está conectado. Tu texto queda guardado como borrador.");
+    // La interpretación por IA llega en la etapa 6. Mientras tanto, el texto queda como borrador.
+    setNotice("La interpretación automática todavía no está activa. Tu texto queda guardado como borrador.");
   };
 
   return (
@@ -148,6 +149,10 @@ export function MealComposer() {
                 <MicIcon className="size-4" /> Tocá el micrófono del teclado para dictar.
               </p>
             )}
+
+            <Link href="/registrar" onClick={close} className="mt-2 inline-block text-sm font-medium text-accent">
+              Cargar a mano
+            </Link>
 
             {!text && keyboardInset === 0 && (
               <ul className="mt-4 space-y-2">
