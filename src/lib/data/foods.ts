@@ -12,6 +12,8 @@ export type Food = {
   sourceRef: string | null;
   validated: boolean;
   archived: boolean;
+  /** Si es el alimento de una receta: se edita desde la receta. */
+  recipeId: string | null;
   units: (FoodUnit & { id: string })[];
   aliases: { id: string; alias: string }[];
   createdAt: string;
@@ -31,13 +33,14 @@ type FoodRow = {
   source_ref: string | null;
   validated: boolean;
   archived_at: string | null;
+  recipe_id?: string | null;
   created_at: string;
   food_units?: { id: string; name: string; grams: number | string }[];
   food_aliases?: { id: string; alias: string }[];
 };
 
 const SELECT =
-  "id, name, preparation, brand, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, source_type, source_ref, validated, archived_at, created_at, food_units(id, name, grams), food_aliases(id, alias)";
+  "id, name, preparation, brand, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, source_type, source_ref, validated, archived_at, recipe_id, created_at, food_units(id, name, grams), food_aliases(id, alias)";
 
 export function mapFood(r: FoodRow): Food {
   return {
@@ -56,6 +59,7 @@ export function mapFood(r: FoodRow): Food {
     sourceRef: r.source_ref,
     validated: r.validated,
     archived: r.archived_at != null,
+    recipeId: r.recipe_id ?? null,
     units: (r.food_units ?? []).map((u) => ({ id: u.id, name: u.name, grams: Number(u.grams) })),
     aliases: r.food_aliases ?? [],
     createdAt: r.created_at,

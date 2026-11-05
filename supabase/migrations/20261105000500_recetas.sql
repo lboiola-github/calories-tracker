@@ -5,13 +5,10 @@
 --   * Cada guardado crea una versión nueva; las versiones no se modifican ni se borran.
 --   * La base calcula los totales desde los valores por 100 g de cada ingrediente en ese momento
 --     y los guarda como snapshot en la versión.
---   * Cada receta tiene un alimento asociado (source_type 'recipe') con los valores por 100 g de
+--   * Cada receta tiene un alimento asociado (recipe_id no nulo, source_type 'other') con los valores por 100 g de
 --     la última versión. Se registra como cualquier alimento: el ítem de comida guarda su propio
 --     snapshot, así que editar la receta nunca altera el historial.
 
-alter table public.foods drop constraint foods_source_type_check;
-alter table public.foods add constraint foods_source_type_check
-  check (source_type in ('manual', 'label', 'usda', 'off', 'other', 'recipe'));
 
 create table public.recipes (
   id uuid primary key default gen_random_uuid(),
@@ -107,12 +104,12 @@ begin
     return coalesce(new, old);
   end if;
   if tg_op = 'INSERT' then
-    if new.recipe_id is not null or new.source_type = 'recipe' then
+    if new.recipe_id is not null then
       raise exception 'los alimentos de receta se crean desde la receta' using errcode = '42501';
     end if;
     return new;
   end if;
-  if old.recipe_id is not null or old.source_type = 'recipe' then
+  if old.recipe_id is not null then
     if tg_op = 'DELETE' then
       raise exception 'archivá la receta en lugar de borrar su alimento' using errcode = '42501';
     end if;
@@ -120,7 +117,7 @@ begin
   end if;
   -- Un trigger BEFORE DELETE que devuelve null cancela el borrado: devolver old.
   if tg_op = 'DELETE' then return old; end if;
-  if new.recipe_id is not null or new.source_type = 'recipe' then
+  if new.recipe_id is not null then
     raise exception 'los alimentos de receta se crean desde la receta' using errcode = '42501';
   end if;
   return new;
@@ -274,7 +271,7 @@ begin
     insert into public.foods (user_id, name, preparation, kcal_per_100g, protein_per_100g, carbs_per_100g,
       fat_per_100g, fiber_per_100g, source_type, source_ref, validated, recipe_id)
     select v_user, v_name, 'na', kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g,
-      'recipe', v.id::text, true, v_recipe.id
+      'other', v.id::text, true, v_recipe.id
     from public.recipe_versions v where v.id = v_version_id
     returning id into v_food_id;
   else

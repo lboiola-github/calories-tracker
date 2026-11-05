@@ -88,3 +88,20 @@ test("referencias: elegir un resultado de USDA carga los valores y la fuente", a
   await expect(page.getByLabel("Referencia (opcional)")).toHaveValue("171477");
   await expect(page.getByLabel("Nombre de la unidad")).toHaveValue("1 cup, chopped or diced");
 });
+
+test("recetas: opcionales, con ingredientes de USDA y vista previa por peso final y porciones", async ({ page }) => {
+  await page.goto("/alimentos");
+  await page.getByRole("navigation", { name: "Catálogo" }).getByRole("link", { name: "Recetas" }).click();
+  await expect(page.getByText("Todavía no tenés recetas")).toBeVisible();
+  await page.getByRole("link", { name: "Nueva" }).click();
+  await page.getByLabel("Nombre").fill("Pollo al horno");
+  await page.getByLabel("Agregar ingrediente").fill("pechuga de pollo");
+  await page.getByRole("button", { name: /^Agregar Chicken, broilers/ }).click();
+  await page.getByLabel("Cantidad de Pechuga de pollo").fill("1000");
+  await expect(page.getByTestId("recipe-total")).toHaveText("1.650 kcal");
+  await expect(page.getByTestId("recipe-per100")).toHaveText("165 kcal");
+  await page.getByLabel("Peso final (g)").fill("750");
+  await page.getByLabel("Porciones").fill("3");
+  await expect(page.getByTestId("recipe-per100")).toHaveText("220 kcal");
+  await expect(page.getByTestId("recipe-portion")).toHaveText("550 kcal");
+});

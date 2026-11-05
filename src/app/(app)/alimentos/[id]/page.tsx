@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { getFood } from "@/lib/data/foods";
@@ -16,6 +16,8 @@ export default async function FoodPage({ params }: { params: Promise<{ id: strin
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const food = await getFood(await createClient(), id);
   if (!food) notFound();
+  // El alimento de una receta se edita desde la receta.
+  if (food.recipeId) redirect(`/alimentos/recetas/${food.recipeId}`);
 
   return (
     <>
