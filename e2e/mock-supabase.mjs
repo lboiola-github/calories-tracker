@@ -247,7 +247,7 @@ createServer(async (req, res) => {
     return send(res, 200, { foods: [CHICKEN] });
   }
   if (url.pathname === "/usda/food/171477") return send(res, 200, CHICKEN);
-  if (url.pathname === "/off/cgi/search.pl")
+  if (url.pathname === "/offsearch/search")
     return send(res, 503, { error: "simulado" });
   send(res, 404, {
     msg: `mock: ruta no implementada ${req.method} ${url.pathname}`,

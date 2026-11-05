@@ -9,8 +9,13 @@ import { ReferenceError, type ReferenceCandidate } from "./types";
 const PUBLIC = "https://world.openfoodfacts.org";
 // OFF_BASE_URL solo se cambia en pruebas e2e (servidor simulado).
 const base = () => process.env.OFF_BASE_URL || PUBLIC;
-export const OFF_USER_AGENT = "Calorias/1.0 (app personal; https://github.com/lboiola-github/calories-tracker)";
-const FIELDS = "code,product_name,product_name_es,generic_name_es,brands,nutriments,nutrition_data_per,serving_size,serving_quantity,quantity";
+// Buscador nuevo de OFF (search-a-licious). La búsqueda clásica /cgi/search.pl responde 503.
+const searchBase = () =>
+  process.env.OFF_SEARCH_BASE_URL || "https://search.openfoodfacts.org";
+export const OFF_USER_AGENT =
+  "Calorias/1.0 (app personal; https://github.com/lboiola-github/calories-tracker)";
+const FIELDS =
+  "code,product_name,product_name_es,generic_name_es,brands,nutriments,nutrition_data_per,serving_size,serving_quantity,quantity";
 
 type OffProduct = {
   code?: string;
@@ -38,11 +43,17 @@ export function isBarcode(s: string): boolean {
  * Energía por 100 g: kcal publicadas; si solo hay kJ, se convierten (÷ 4,184).
  * `energy_100g` de OFF está en kJ. Nunca se calcula desde los macros.
  */
-export function pickOffEnergy(n: Record<string, unknown>): { kcal: number; basis: string } | null {
+export function pickOffEnergy(
+  n: Record<string, unknown>,
+): { kcal: number; basis: string } | null {
   const kcal = num(n["energy-kcal_100g"]);
   if (kcal != null) return { kcal, basis: "Open Food Facts energy-kcal_100g" };
   const kj = num(n["energy-kj_100g"]) ?? num(n["energy_100g"]);
-  if (kj != null) return { kcal: Math.round((kj / 4.184) * 100) / 100, basis: "Open Food Facts kJ ÷ 4,184" };
+  if (kj != null)
+    return {
+      kcal: Math.round((kj / 4.184) * 100) / 100,
+      basis: "Open Food Facts kJ ÷ 4,184",
+    };
   return null;
 }
 
@@ -53,10 +64,29 @@ export function parseOffProduct(p: OffProduct): ReferenceCandidate | null {
   const carbs = num(n.carbohydrates_100g);
   const fat = num(n.fat_100g);
   const code = String(p.code ?? "").trim();
-  const name = (p.product_name_es || p.product_name || p.generic_name_es || "").trim();
-  if (!energy || protein == null || carbs == null || fat == null || !code || !name) return null;
+  const name = (
+    p.product_name_es ||
+    p.product_name ||
+    p.generic_name_es ||
+    ""
+  ).trim();
+  if (
+    !energy ||
+    protein == null ||
+    carbs == null ||
+    fat == null ||
+    !code ||
+    !name
+  )
+    return null;
 
-  const per100: Per100g = { kcal: energy.kcal, protein, carbs, fat, fiber: num(n.fiber_100g) };
+  const per100: Per100g = {
+    kcal: energy.kcal,
+    protein,
+    carbs,
+    fat,
+    fiber: num(n.fiber_100g),
+  };
   const warnings: string[] = [];
 
   // Valores mayores a 100 g por 100 g son errores de carga del producto.
@@ -64,11 +94,15 @@ export function parseOffProduct(p: OffProduct): ReferenceCandidate | null {
 
   const mismatch = energyMismatch(per100);
   if (mismatch != null && mismatch > 0.15) {
-    warnings.push("Las calorías no coinciden con los macros (¿kJ o valores por porción?): revisá antes de aceptar.");
+    warnings.push(
+      "Las calorías no coinciden con los macros (¿kJ o valores por porción?): revisá antes de aceptar.",
+    );
   }
   // Si el producto declara la tabla "por porción", los *_100g los calculó OFF: conviene verificar con la etiqueta.
   if (p.nutrition_data_per && p.nutrition_data_per !== "100g") {
-    warnings.push("La etiqueta está cargada por porción: OFF calculó los valores por 100 g.");
+    warnings.push(
+      "La etiqueta está cargada por porción: OFF calculó los valores por 100 g.",
+    );
   }
   warnings.push("Datos colaborativos: compará con la etiqueta.");
 
@@ -99,11 +133,26 @@ async function offFetch(url: URL, fetchImpl: typeof fetch): Promise<Response> {
       headers: { accept: "application/json", "user-agent": OFF_USER_AGENT },
     });
   } catch {
-    throw new ReferenceError("Open Food Facts no respondió. Podés cargar los valores a mano.", "unavailable");
+    throw new ReferenceError(
+      "Open Food Facts no respondió. Podés cargar los valores a mano.",
+      "unavailable",
+    );
   }
-  if (res.status === 429) throw new ReferenceError("Se alcanzó el límite de consultas a Open Food Facts. Probá en un minuto.", "rate_limited");
-  if (res.status === 404) throw new ReferenceError("No se encontró el producto en Open Food Facts.", "not_found");
-  if (!res.ok) throw new ReferenceError("Open Food Facts no está disponible ahora.", "unavailable");
+  if (res.status === 429)
+    throw new ReferenceError(
+      "Se alcanzó el límite de consultas a Open Food Facts. Probá en un minuto.",
+      "rate_limited",
+    );
+  if (res.status === 404)
+    throw new ReferenceError(
+      "No se encontró el producto en Open Food Facts.",
+      "not_found",
+    );
+  if (!res.ok)
+    throw new ReferenceError(
+      "Open Food Facts no está disponible ahora.",
+      "unavailable",
+    );
   return res;
 }
 
@@ -111,33 +160,58 @@ async function json(res: Response): Promise<unknown> {
   try {
     return await res.json();
   } catch {
-    throw new ReferenceError("Respuesta inválida de Open Food Facts.", "bad_response");
+    throw new ReferenceError(
+      "Respuesta inválida de Open Food Facts.",
+      "bad_response",
+    );
   }
 }
 
-export async function getOffProduct(barcode: string, fetchImpl: typeof fetch = fetch): Promise<ReferenceCandidate> {
+export async function getOffProduct(
+  barcode: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReferenceCandidate> {
   const code = barcode.trim();
-  if (!isBarcode(code)) throw new ReferenceError("Código de barras inválido.", "not_found");
+  if (!isBarcode(code))
+    throw new ReferenceError("Código de barras inválido.", "not_found");
   const url = new URL(`${base()}/api/v2/product/${code}`);
   url.searchParams.set("fields", FIELDS);
-  const data = (await json(await offFetch(url, fetchImpl))) as { status?: number; product?: OffProduct };
-  if (data.status !== 1 || !data.product) throw new ReferenceError("No se encontró el producto en Open Food Facts.", "not_found");
+  const data = (await json(await offFetch(url, fetchImpl))) as {
+    status?: number;
+    product?: OffProduct;
+  };
+  if (data.status !== 1 || !data.product)
+    throw new ReferenceError(
+      "No se encontró el producto en Open Food Facts.",
+      "not_found",
+    );
   const c = parseOffProduct({ code, ...data.product });
-  if (!c) throw new ReferenceError("El producto no tiene la tabla nutricional completa en Open Food Facts.", "bad_response");
+  if (!c)
+    throw new ReferenceError(
+      "El producto no tiene la tabla nutricional completa en Open Food Facts.",
+      "bad_response",
+    );
   return c;
 }
 
-export async function searchOff(query: string, fetchImpl: typeof fetch = fetch): Promise<ReferenceCandidate[]> {
-  const url = new URL(`${base()}/cgi/search.pl`);
-  url.searchParams.set("search_terms", query);
-  url.searchParams.set("search_simple", "1");
-  url.searchParams.set("json", "1");
-  url.searchParams.set("page_size", "15");
-  url.searchParams.set("fields", FIELDS);
-  // Prioriza productos vendidos en Argentina.
-  url.searchParams.set("tagtype_0", "countries");
-  url.searchParams.set("tag_contains_0", "contains");
-  url.searchParams.set("tag_0", "argentina");
-  const data = (await json(await offFetch(url, fetchImpl))) as { products?: OffProduct[] };
-  return (data.products ?? []).map(parseOffProduct).filter((c): c is ReferenceCandidate => c !== null);
+export async function searchOff(
+  query: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReferenceCandidate[]> {
+  const url = new URL(`${searchBase()}/search`);
+  url.searchParams.set("q", query);
+  url.searchParams.set("page_size", "25");
+  url.searchParams.set("langs", "es");
+  url.searchParams.set("fields", `${FIELDS},countries_tags`);
+  const data = (await json(await offFetch(url, fetchImpl))) as {
+    hits?: (OffProduct & { countries_tags?: string[] })[];
+  };
+  const hits = data.hits ?? [];
+  // Primero los productos vendidos en Argentina.
+  const ar = (p: { countries_tags?: string[] }) =>
+    (p.countries_tags ?? []).includes("en:argentina");
+  return [...hits.filter(ar), ...hits.filter((p) => !ar(p))]
+    .map(parseOffProduct)
+    .filter((c): c is ReferenceCandidate => c !== null)
+    .slice(0, 15);
 }
