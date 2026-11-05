@@ -90,7 +90,7 @@ export function SettingsForm({ initial, today }: Props) {
                 type="button"
                 aria-pressed={sex === value}
                 onClick={() => setSex(value)}
-                className={`h-10 rounded-xl text-[15px] font-medium transition-colors ${sex === value ? "bg-surface text-ink shadow-sm" : "text-ink-2"}`}
+                className={`h-10 rounded-xl text-[15px] font-medium transition-colors ${sex === value ? "bg-track text-ink" : "text-ink-2"}`}
               >
                 {label}
               </button>
@@ -175,7 +175,7 @@ export function SettingsForm({ initial, today }: Props) {
               type="button"
               aria-pressed={targetMode === value}
               onClick={() => setTargetMode(value)}
-              className={`h-10 rounded-xl text-[15px] font-medium transition-colors ${targetMode === value ? "bg-surface text-ink shadow-sm" : "text-ink-2"}`}
+              className={`h-10 rounded-xl text-[15px] font-medium transition-colors ${targetMode === value ? "bg-track text-ink" : "text-ink-2"}`}
             >
               {label}
             </button>
@@ -218,7 +218,7 @@ export function SettingsForm({ initial, today }: Props) {
         )}
         {targetMode === "auto" && <input type="hidden" name="targetManual" value="" />}
 
-        <div className="mt-4 rounded-3xl bg-surface p-5 shadow-sm">
+        <div className="mt-4 rounded-3xl bg-surface p-5">
           <p className="text-sm font-medium text-ink-2">Objetivo resultante</p>
           <p className="tabular mt-1 font-display text-[40px] font-bold leading-none tracking-tight">
             {preview.result.target.value != null ? formatKcal(preview.result.target.value) : "—"}
