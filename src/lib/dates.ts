@@ -4,6 +4,11 @@
  */
 export const DEFAULT_TIMEZONE = "America/Argentina/Cordoba";
 
+/** Hora local (0–23) del usuario. */
+export function localHour(instant: Date, timeZone: string = DEFAULT_TIMEZONE): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(instant));
+}
+
 export function localDate(instant: Date, timeZone: string = DEFAULT_TIMEZONE): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -26,4 +31,12 @@ export function isIsoDate(value: string): boolean {
   const [y, m, d] = value.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/** "lunes 10 de marzo" para encabezados. */
+export function formatLongDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, d)),
+  );
 }

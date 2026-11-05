@@ -23,3 +23,10 @@ describe("fecha local del usuario", () => {
     expect(isIsoDate("2024-2-9")).toBe(false);
   });
 });
+
+import { formatLongDate, localHour } from "./dates";
+
+describe("hora y formato", () => {
+  it("hora local en Córdoba", () => expect(localHour(new Date("2025-03-11T02:30:00Z"))).toBe(23));
+  it("fecha larga en español", () => expect(formatLongDate("2025-03-10")).toBe("lunes, 10 de marzo"));
+});

@@ -37,4 +37,5 @@ test("sin datos, no inventa valores", async ({ page }) => {
   await expect(page.getByText(/Completá la fecha de nacimiento, el sexo, la altura, el peso y la actividad/)).toBeVisible();
   await page.goto("/");
   await expect(page.getByText("Objetivo sin definir")).toBeVisible();
+  await expect(page.getByTestId("remaining")).toHaveText("—");
 });
