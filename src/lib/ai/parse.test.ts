@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { numbersIn, sanitizeInterpretation, wordBefore } from "./parse";
+import {
+  articleBeforeFood,
+  numbersIn,
+  sanitizeInterpretation,
+  wordBefore,
+} from "./parse";
 
 describe("numbersIn", () => {
   it("lee dígitos, palabras y fracciones", () => {
@@ -141,6 +146,22 @@ describe("sanitizeInterpretation", () => {
     expect(wordBefore("verde te", "te")).toBe("verde");
     expect(wordBefore("comi tostadas", "te")).toBe("");
     expect(wordBefore("te", "te")).toBe("");
+  });
+
+  it("si el fragmento es el mensaje entero, busca un/una justo antes del alimento", () => {
+    const src =
+      "comi una milanesa de ternera con pure, un vaso de leche y una ensalada con pollo";
+    expect(articleBeforeFood("milanesa de ternera", src)).toEqual({
+      quantity: 1,
+      unit: "unidad",
+    });
+    expect(articleBeforeFood("leche", src)).toEqual({
+      quantity: 1,
+      unit: "vaso",
+    });
+    expect(articleBeforeFood("puré", src)).toBeNull();
+    expect(articleBeforeFood("pollo", src)).toBeNull();
+    expect(articleBeforeFood("queso", "un poco de queso")).toBeNull();
   });
 
   it("si el fragmento no es del mensaje, verifica contra el mensaje entero", () => {

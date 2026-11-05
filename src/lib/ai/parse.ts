@@ -194,6 +194,27 @@ export function articleQuantity(
   return { quantity: 1, unit };
 }
 
+/**
+ * Respaldo cuando el fragmento no sirve (p. ej. el modelo copió el mensaje entero):
+ * busca en el mensaje "un/una + alimento" o "un/una + medida + de + alimento", nada más amplio.
+ */
+export function articleBeforeFood(
+  food: string,
+  source: string,
+): { quantity: number; unit: string } | null {
+  const head = norm(food).split(" ")[0];
+  if (!head || head.length < 2) return null;
+  const esc = head.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const m = source.match(
+    new RegExp(
+      `(?:^|[\\s,;:.])(?:un|una|uno)\\s+(?:([a-z]+)\\s+de\\s+)?${esc}(?![a-z0-9])`,
+    ),
+  );
+  if (!m) return null;
+  if (m[1] && !UNIT_WORDS.has(m[1])) return null;
+  return { quantity: 1, unit: m[1] ?? "unidad" };
+}
+
 /** Valida y limpia la respuesta del modelo. Lanza si no cumple el esquema. */
 export function sanitizeInterpretation(
   raw: unknown,
@@ -230,7 +251,8 @@ export function sanitizeInterpretation(
     } else {
       unit = null;
       // "una manzana", "un té", "un vaso de leche": el artículo es la cantidad (1), y sale del texto.
-      const one = articleQuantity(fragment, source);
+      const one =
+        articleQuantity(fragment, source) ?? articleBeforeFood(food, source);
       if (one) ({ quantity, unit } = one);
     }
     const prep =
