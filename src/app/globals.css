@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de diseño. Claro por defecto, oscuro según el sistema.
+ * Tipografía del sistema: en iPhone es SF Pro, sin descargas extra.
+ */
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #efede8;
+  --ink: #141414;
+  --ink-2: #5b5a57;
+  --ink-3: #8f8d88;
+  --line: rgba(20, 20, 20, 0.08);
+  --accent: #ff5f2e;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(255, 95, 46, 0.12);
+  --protein: #3b82f6;
+  --carbs: #f5a524;
+  --fat: #a855f7;
+  --danger: #e5484d;
+  --success: #30a46c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0c0d;
+    --surface: #17171a;
+    --surface-2: #222226;
+    --ink: #f4f4f2;
+    --ink-2: #a9a8a4;
+    --ink-3: #75746f;
+    --line: rgba(255, 255, 255, 0.08);
+    --accent: #ff6a3d;
+    --accent-soft: rgba(255, 106, 61, 0.16);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-protein: var(--protein);
+  --color-carbs: var(--carbs);
+  --color-fat: var(--fat);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+}
+
+/* Áreas seguras del iPhone (notch / Dynamic Island / indicador de inicio). */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+.pb-nav {
+  /* Espacio para la barra inferior + indicador de inicio. */
+  padding-bottom: calc(env(safe-area-inset-bottom) + 96px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* iOS hace zoom en inputs con fuente < 16 px: se evita. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-sheet-in {
+    animation: sheet-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .animate-fade-in {
+    animation: fade-in 200ms ease-out;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
