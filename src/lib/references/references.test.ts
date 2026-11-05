@@ -200,3 +200,29 @@ describe("búsqueda combinada", () => {
     expect(await searchReferences(" a ")).toEqual({ candidates: [], errors: [], usdaQuery: null });
   });
 });
+
+import { foodFromReference, preparationFromText } from "./to-food";
+
+describe("alimento desde una referencia", () => {
+  it("deduce la preparación de lo escrito o de la fuente", () => {
+    expect(preparationFromText("pechuga de pollo a la plancha", "Chicken breast, raw")).toBe("grilled");
+    expect(preparationFromText("pechuga de pollo", "Chicken, breast, meat only, cooked, roasted")).toBe("roasted");
+    expect(preparationFromText("arroz", "Rice, white, long-grain, raw")).toBe("raw");
+    expect(preparationFromText("banana", "Bananas")).toBe("na");
+  });
+
+  it("usa el nombre en español, guarda el de la fuente como alias y conserva la fuente", () => {
+    const f = foodFromReference(parseFdcFood(SR_CHICKEN)!, "  pechuga de pollo ");
+    expect(f).toMatchObject({
+      name: "Pechuga de pollo",
+      preparation: "roasted",
+      source_type: "usda",
+      source_ref: "171477",
+      validated: true,
+      kcal_per_100g: 165,
+      units: [{ name: "1 cup, chopped or diced", grams: 140 }],
+      aliases: ["Chicken, broilers or fryers, breast, meat only, cooked, roasted"],
+    });
+    expect(foodFromReference(parseOffProduct(OFF_DULCE)!, "dulce de leche").validated).toBe(false);
+  });
+});

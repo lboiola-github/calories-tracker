@@ -32,10 +32,24 @@ test("registro manual: sin resultados ofrece crear el alimento y vuelve al regis
   await page.goto("/registrar?comida=lunch");
   await expect(page.getByRole("radio", { name: "Almuerzo" })).toHaveAttribute("aria-checked", "true");
   await page.getByLabel("Buscar alimento").fill("empanada árabe");
-  const create = page.getByRole("link", { name: "Crear “empanada árabe”" });
+  const create = page.getByRole("link", { name: "Crear “empanada árabe” a mano" });
   await expect(create).toBeVisible();
   await create.click();
   await expect(page.getByLabel("Nombre", { exact: true })).toHaveValue("empanada árabe");
+});
+
+test("registro manual: un alimento genérico se toma de USDA sin cargarlo antes", async ({ page }) => {
+  await page.goto("/registrar?comida=lunch");
+  await page.getByLabel("Buscar alimento").fill("pechuga de pollo asada");
+  const refs = page.getByRole("region", { name: "Referencias" });
+  await expect(refs.getByText("No está en tu catálogo.")).toHaveCount(0);
+  await expect(page.getByText("No está en tu catálogo.")).toBeVisible();
+  await refs.getByRole("button", { name: "Agregar Chicken, broilers or fryers, breast, meat only, cooked, roasted" }).click();
+  const lines = page.getByRole("list", { name: "Para registrar" });
+  await expect(lines.getByText("Pechuga de pollo asada")).toBeVisible();
+  await expect(page.getByLabel("Unidad de Pechuga de pollo asada")).toContainText("1 cup, chopped or diced (140 g)");
+  await page.getByLabel("Cantidad de Pechuga de pollo asada").fill("200");
+  await expect(page.getByRole("button", { name: "Registrar · 330 kcal" })).toBeVisible();
 });
 
 test("inicio muestra las comidas del día y el campo + ofrece carga manual", async ({ page }) => {
