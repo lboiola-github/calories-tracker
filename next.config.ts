@@ -4,6 +4,8 @@ import type { NextConfig } from "next";
 // del usuario, y el modelo dinámico clásico es más simple de razonar con Supabase.
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Fotos de peso: se comprimen en el teléfono (≈300 KB c/u) y entran bajo el límite de Vercel (4,5 MB).
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   turbopack: {
     rules: {
       "*.css": {

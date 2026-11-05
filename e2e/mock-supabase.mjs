@@ -29,6 +29,7 @@ const send = (res, status, body) => {
 
 // Alimentos guardados con save_food durante las pruebas (para leerlos de vuelta por id).
 const savedFoods = new Map();
+const uploads = [];
 const CHICKEN = {
   fdcId: 171477, dataType: "SR Legacy", description: "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
   foodNutrients: [
@@ -44,7 +45,8 @@ createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let body = "";
   for await (const chunk of req) body += chunk;
-  const json = body ? JSON.parse(body) : {};
+  const isJson = (req.headers["content-type"] ?? "").includes("json");
+  const json = body && isJson ? JSON.parse(body) : {};
 
   if (req.method === "POST" && url.pathname === "/auth/v1/token") {
     const grant = url.searchParams.get("grant_type");
@@ -82,9 +84,18 @@ createServer(async (req, res) => {
       const wanted = (ids[1] ?? ids[2]).split(",").map((x) => x.replace(/"/g, ""));
       return send(res, 200, wanted.map((id) => savedFoods.get(id)).filter(Boolean));
     }
+    if (url.pathname === "/rest/v1/weight_entries" && req.method === "POST") {
+      return send(res, 201, { id: "44444444-4444-4444-8444-444444444444", ...json });
+    }
     if (req.method === "GET" || req.method === "HEAD") return send(res, 200, []);
     return send(res, 201, []);
   }
+  // Storage: subidas de fotos (solo se registra la ruta).
+  if (url.pathname.startsWith("/storage/v1/object/weight-photos/") && req.method === "POST") {
+    uploads.push(url.pathname.replace("/storage/v1/object/weight-photos/", ""));
+    return send(res, 200, { Key: url.pathname });
+  }
+  if (url.pathname === "/__mock/uploads") return send(res, 200, uploads);
   // Referencias nutricionales simuladas (USDA_BASE_URL y OFF_BASE_URL apuntan acá).
   if (url.pathname === "/usda/foods/search") {
     return send(res, 200, { foods: [CHICKEN] });
