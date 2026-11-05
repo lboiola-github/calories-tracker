@@ -32,6 +32,8 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK_PORT}`,
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_prueba",
+        USDA_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/usda`,
+        OFF_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/off`,
       },
     },
   ],

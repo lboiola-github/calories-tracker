@@ -55,5 +55,19 @@ createServer(async (req, res) => {
     if (req.method === "GET" || req.method === "HEAD") return send(res, 200, []);
     return send(res, 201, []);
   }
+  // Referencias nutricionales simuladas (USDA_BASE_URL y OFF_BASE_URL apuntan acá).
+  if (url.pathname === "/usda/foods/search") {
+    return send(res, 200, { foods: [{
+      fdcId: 171477, dataType: "SR Legacy", description: "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+      foodNutrients: [
+        { nutrientId: 1008, nutrientNumber: "208", nutrientName: "Energy", unitName: "KCAL", value: 165 },
+        { nutrientId: 1003, nutrientNumber: "203", nutrientName: "Protein", unitName: "G", value: 31.02 },
+        { nutrientId: 1004, nutrientNumber: "204", nutrientName: "Total lipid (fat)", unitName: "G", value: 3.57 },
+        { nutrientId: 1005, nutrientNumber: "205", nutrientName: "Carbohydrate, by difference", unitName: "G", value: 0 },
+      ],
+      foodMeasures: [{ disseminationText: "1 cup, chopped or diced", gramWeight: 140 }],
+    }] });
+  }
+  if (url.pathname === "/off/cgi/search.pl") return send(res, 503, { error: "simulado" });
   send(res, 404, { msg: `mock: ruta no implementada ${req.method} ${url.pathname}` });
 }).listen(PORT, () => console.log(`mock supabase en :${PORT}`));
