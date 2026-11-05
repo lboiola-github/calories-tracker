@@ -19,34 +19,124 @@ describe("sanitizeInterpretation", () => {
         meal_type: "lunch",
         day: null,
         items: [
-          { fragment: "230 g de pechuga de pollo cocida", food: "pechuga de pollo", quantity: 230, unit: "g", preparation: "cooked" },
-          { fragment: "una ensalada", food: "ensalada", quantity: 1, unit: "unidad", preparation: null },
+          {
+            fragment: "230 g de pechuga de pollo cocida",
+            food: "pechuga de pollo",
+            quantity: 230,
+            unit: "g",
+            preparation: "cooked",
+          },
+          {
+            fragment: "una ensalada",
+            food: "ensalada",
+            quantity: 1,
+            unit: "unidad",
+            preparation: null,
+          },
         ],
       },
       input,
     );
     expect(r.mealType).toBe("lunch");
-    expect(r.items[0]).toMatchObject({ quantity: 230, unit: "g", preparation: "cooked", note: null });
+    expect(r.items[0]).toMatchObject({
+      quantity: 230,
+      unit: "g",
+      preparation: "cooked",
+      note: null,
+    });
     expect(r.items[1]).toMatchObject({ quantity: 1, unit: "unidad" });
   });
   it("descarta cantidades inventadas por el modelo", () => {
     const r = sanitizeInterpretation(
-      { meal_type: null, day: null, items: [{ fragment: "una ensalada", food: "ensalada", quantity: 150, unit: "g", preparation: null }] },
+      {
+        meal_type: null,
+        day: null,
+        items: [
+          {
+            fragment: "una ensalada",
+            food: "ensalada",
+            quantity: 150,
+            unit: "g",
+            preparation: null,
+          },
+        ],
+      },
       input,
     );
     expect(r.items[0]).toMatchObject({ quantity: null, unit: null });
     expect(r.items[0].note).toMatch(/no figura/);
   });
+  it("acepta el artículo justo antes del fragmento, pero no números más lejanos", () => {
+    const one = sanitizeInterpretation(
+      {
+        meal_type: null,
+        day: null,
+        items: [
+          {
+            fragment: "vaso de leche descremada",
+            food: "leche descremada",
+            quantity: 1,
+            unit: "vaso",
+            preparation: null,
+          },
+        ],
+      },
+      "un vaso de leche descremada",
+    );
+    expect(one.items[0].quantity).toBe(1);
+    const far = sanitizeInterpretation(
+      {
+        meal_type: null,
+        day: null,
+        items: [
+          {
+            fragment: "banana",
+            food: "banana",
+            quantity: 2,
+            unit: null,
+            preparation: null,
+          },
+        ],
+      },
+      "2 huevos y banana",
+    );
+    expect(far.items[0].quantity).toBeNull();
+  });
+
   it("si el fragmento no es del mensaje, verifica contra el mensaje entero", () => {
     const r = sanitizeInterpretation(
-      { meal_type: null, day: null, items: [{ fragment: "300 g de pollo", food: "pollo", quantity: 300, unit: "g", preparation: null }] },
+      {
+        meal_type: null,
+        day: null,
+        items: [
+          {
+            fragment: "300 g de pollo",
+            food: "pollo",
+            quantity: 300,
+            unit: "g",
+            preparation: null,
+          },
+        ],
+      },
       input,
     );
     expect(r.items[0].quantity).toBeNull();
   });
   it("ignora valores fuera del esquema", () => {
     const r = sanitizeInterpretation(
-      { meal_type: "brunch", day: null, items: [{ fragment: "x", food: "x", quantity: null, unit: "g", preparation: "smoked" }] },
+      {
+        meal_type: "brunch",
+        day: null,
+        items: [
+          {
+            fragment: "x",
+            food: "x",
+            quantity: null,
+            unit: "g",
+            preparation: "smoked",
+          },
+        ],
+      },
       "x",
     );
     expect(r.mealType).toBeNull();

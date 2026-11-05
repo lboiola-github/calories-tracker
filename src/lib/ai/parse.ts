@@ -11,7 +11,10 @@ export const INTERPRET_SCHEMA = {
   additionalProperties: false,
   required: ["meal_type", "day", "items"],
   properties: {
-    meal_type: { type: ["string", "null"], enum: ["breakfast", "lunch", "snack", "dinner", "other", null] },
+    meal_type: {
+      type: ["string", "null"],
+      enum: ["breakfast", "lunch", "snack", "dinner", "other", null],
+    },
     day: { type: ["string", "null"], enum: ["today", "yesterday", null] },
     items: {
       type: "array",
@@ -24,7 +27,13 @@ export const INTERPRET_SCHEMA = {
           food: { type: "string" },
           quantity: { type: ["number", "null"] },
           unit: { type: ["string", "null"] },
-          preparation: { type: ["string", "null"], enum: [...PREPARATIONS.map((p) => p.key).filter((k) => k !== "na"), null] },
+          preparation: {
+            type: ["string", "null"],
+            enum: [
+              ...PREPARATIONS.map((p) => p.key).filter((k) => k !== "na"),
+              null,
+            ],
+          },
         },
       },
     },
@@ -68,7 +77,11 @@ export type InterpretedItem = {
   /** Por qué se descartó la cantidad, si se descartó. */
   note: string | null;
 };
-export type Interpretation = { mealType: MealType | null; day: "today" | "yesterday" | null; items: InterpretedItem[] };
+export type Interpretation = {
+  mealType: MealType | null;
+  day: "today" | "yesterday" | null;
+  items: InterpretedItem[];
+};
 
 const norm = (s: string) =>
   s
@@ -79,16 +92,36 @@ const norm = (s: string) =>
     .trim();
 
 const WORDS: Record<string, number> = {
-  un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
-  once: 11, doce: 12, quince: 15, veinte: 20, medio: 0.5, media: 0.5, docena: 12, cuarto: 0.25,
+  un: 1,
+  una: 1,
+  uno: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+  once: 11,
+  doce: 12,
+  quince: 15,
+  veinte: 20,
+  medio: 0.5,
+  media: 0.5,
+  docena: 12,
+  cuarto: 0.25,
 };
 
 /** Números escritos en el texto (dígitos con coma o punto, palabras y "y medio"). */
 export function numbersIn(text: string): number[] {
   const t = norm(text);
   const out: number[] = [];
-  for (const m of t.matchAll(/\d+(?:[.,]\d+)?/g)) out.push(Number(m[0].replace(",", ".")));
-  for (const m of t.matchAll(/\b[a-z]+\b/g)) if (m[0] in WORDS) out.push(WORDS[m[0]]);
+  for (const m of t.matchAll(/\d+(?:[.,]\d+)?/g))
+    out.push(Number(m[0].replace(",", ".")));
+  for (const m of t.matchAll(/\b[a-z]+\b/g))
+    if (m[0] in WORDS) out.push(WORDS[m[0]]);
   // "uno y medio", "dos y media", "1 y medio"
   for (const m of t.matchAll(/\b(\d+|[a-z]+) y (medio|media)\b/g)) {
     const base = /\d/.test(m[1]) ? Number(m[1]) : WORDS[m[1]];
@@ -99,7 +132,10 @@ export function numbersIn(text: string): number[] {
 }
 
 /** Valida y limpia la respuesta del modelo. Lanza si no cumple el esquema. */
-export function sanitizeInterpretation(raw: unknown, input: string): Interpretation {
+export function sanitizeInterpretation(
+  raw: unknown,
+  input: string,
+): Interpretation {
   const r = rawSchema.parse(raw);
   const source = norm(input);
   const items: InterpretedItem[] = [];
@@ -113,17 +149,35 @@ export function sanitizeInterpretation(raw: unknown, input: string): Interpretat
     let unit = it.unit?.trim().slice(0, 40) || null;
     let note: string | null = null;
     if (quantity != null) {
-      const ok = quantity > 0 && quantity <= 10000 && numbersIn(fragment).some((n) => Math.abs(n - quantity!) < 1e-9);
+      const q = quantity;
+      const has = (t: string) =>
+        numbersIn(t).some((n) => Math.abs(n - q) < 1e-9);
+      // El modelo a veces deja afuera el artículo ("vaso de leche" en "un vaso de leche"):
+      // se acepta también la palabra inmediatamente anterior al fragmento, y nada más.
+      const at = source.indexOf(norm(fragment));
+      const prev =
+        at > 0 ? (source.slice(0, at).trim().split(" ").at(-1) ?? "") : "";
+      const ok =
+        q > 0 &&
+        q <= 10000 &&
+        (has(fragment) || (prev !== "" && has(`${prev} ${fragment}`)));
       if (!ok) {
         note = "La cantidad no figura en el texto: indicála.";
         quantity = null;
         unit = null;
       }
     } else unit = null;
-    const prep = it.preparation && PREPARATIONS.some((p) => p.key === it.preparation) ? it.preparation : null;
+    const prep =
+      it.preparation && PREPARATIONS.some((p) => p.key === it.preparation)
+        ? it.preparation
+        : null;
     items.push({ fragment, food, quantity, unit, preparation: prep, note });
   }
-  return { mealType: isMealType(r.meal_type) ? r.meal_type : null, day: r.day, items };
+  return {
+    mealType: isMealType(r.meal_type) ? r.meal_type : null,
+    day: r.day,
+    items,
+  };
 }
 
 export const GROQ_MODEL = "openai/gpt-oss-20b";
@@ -135,7 +189,10 @@ export function groqRequestBody(text: string) {
     temperature: 0,
     max_completion_tokens: 1500,
     reasoning_effort: "low",
-    response_format: { type: "json_schema", json_schema: { name: "comida", strict: true, schema: INTERPRET_SCHEMA } },
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "comida", strict: true, schema: INTERPRET_SCHEMA },
+    },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: text },
