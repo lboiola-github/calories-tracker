@@ -48,5 +48,12 @@ createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/auth/v1/signup") {
     return send(res, 200, { ...USER, email: json.email, id: "22222222-2222-4222-8222-222222222222" });
   }
+  // Datos: respuesta de "usuario sin datos". La lógica real de la base (RLS, funciones)
+  // se prueba con npm run test:db sobre Postgres; acá solo se prueba la interfaz.
+  if (url.pathname.startsWith("/rest/v1/")) {
+    if (url.pathname.startsWith("/rest/v1/rpc/")) return send(res, 200, null);
+    if (req.method === "GET" || req.method === "HEAD") return send(res, 200, []);
+    return send(res, 201, []);
+  }
   send(res, 404, { msg: `mock: ruta no implementada ${req.method} ${url.pathname}` });
 }).listen(PORT, () => console.log(`mock supabase en :${PORT}`));

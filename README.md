@@ -46,6 +46,7 @@ Para probar en el iPhone dentro de la misma red Wi-Fi: `npm run dev -- -H 0.0.0.
 ```bash
 npm run lint
 npm run build
+npm test           # pruebas unitarias (cálculos)
 npm run test:db    # migraciones + RLS sobre un Postgres local descartable
 npm run test:e2e   # Playwright, emulando un iPhone 15 (con un Supabase Auth simulado)
 ```

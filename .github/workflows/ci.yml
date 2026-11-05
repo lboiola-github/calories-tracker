@@ -18,6 +18,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
+      - name: Pruebas unitarias
+        run: npm test
       - name: Pruebas de base de datos (migraciones + RLS)
         run: npm run test:db
       - run: npx playwright install --with-deps chromium
