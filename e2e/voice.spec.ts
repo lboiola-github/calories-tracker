@@ -64,5 +64,5 @@ test("la evaluación en producción solo acepta tandas fijas", async ({
   request,
 }) => {
   expect((await request.get("/api/ia/eval")).status()).toBe(400);
-  expect((await request.get("/api/ia/eval?tanda=9")).status()).toBe(400);
+  expect((await request.get("/api/ia/eval?tanda=99")).status()).toBe(400);
 });

@@ -6,56 +6,73 @@ import { InterpretError, interpretText } from "@/lib/ai/groq";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Público pero acotado: cada tanda se calcula a lo sumo una vez cada 6 horas (cuota gratuita).
-// Los casos están en el repositorio y no tienen datos personales.
+// Público pero acotado: cada tanda fija se calcula a lo sumo una vez cada 6 horas por instancia
+// (cuota gratuita). Los casos están en el repositorio y no tienen datos personales.
 const TTL = 6 * 60 * 60_000;
-const cache = new Map<string, { at: number; body: object }>();
+const SIZE = 3; // tandas cortas: responden en pocos segundos
+const cache = new Map<number, { at: number; body: object }>();
+
+type Result = {
+  i: number;
+  text: string;
+  ok: boolean;
+  problems: string[];
+  got?: unknown;
+};
+
+async function runCase(i: number, c: EvalCase): Promise<Result> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const out = await interpretText(c.text);
+      const problems = checkCase(c, out);
+      return {
+        i,
+        text: c.text,
+        ok: problems.length === 0,
+        problems,
+        ...(problems.length ? { got: out.items } : {}),
+      };
+    } catch (e) {
+      const kind = e instanceof InterpretError ? e.kind : "error";
+      if (kind === "rate_limited" && attempt === 0) {
+        await new Promise((r) => setTimeout(r, 8000));
+        continue;
+      }
+      return { i, text: c.text, ok: false, problems: [kind] };
+    }
+  }
+}
 
 /** Corre una tanda de la evaluación (evals/interpretacion.json) contra Groq real. ?tanda=1 */
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams;
   const all = cases as EvalCase[];
-  // Solo tandas fijas de 6 casos, para que el caché no se pueda esquivar con otros rangos.
-  const batches = Math.ceil(all.length / 6);
-  const batch = Number(q.get("tanda"));
+  const batches = Math.ceil(all.length / SIZE);
+  const batch = Number(req.nextUrl.searchParams.get("tanda"));
+  // Solo tandas fijas, para que el caché no se pueda esquivar con otros rangos.
   if (!Number.isInteger(batch) || batch < 1 || batch > batches)
     return NextResponse.json(
       { error: `tanda debe ser 1 a ${batches}` },
       { status: 400 },
     );
-  const from = (batch - 1) * 6;
-  const to = Math.min(all.length, from + 6);
-  const key = `${from}-${to}`;
-  const hit = cache.get(key);
+  const hit = cache.get(batch);
   if (hit && Date.now() - hit.at < TTL)
     return NextResponse.json({ ...hit.body, cached: true });
-  const results: {
-    i: number;
-    text: string;
-    ok: boolean;
-    problems: string[];
-  }[] = [];
-  for (let i = from; i < to; i++) {
-    const c = all[i];
-    try {
-      const out = await interpretText(c.text);
-      const problems = checkCase(c, out);
-      results.push({ i, text: c.text, ok: problems.length === 0, problems });
-    } catch (e) {
-      results.push({
-        i,
-        text: c.text,
-        ok: false,
-        problems: [e instanceof InterpretError ? e.kind : "error"],
-      });
-    }
-    if (i < to - 1) await new Promise((r) => setTimeout(r, 2500)); // límite gratuito por minuto
-  }
-  return NextResponse.json({
+
+  const from = (batch - 1) * SIZE;
+  const to = Math.min(all.length, from + SIZE);
+  const results: Result[] = [];
+  for (let i = from; i < to; i++) results.push(await runCase(i, all[i]));
+  const body = {
     total: all.length,
+    batches,
     from,
     to,
     passed: results.filter((r) => r.ok).length,
     results,
-  });
+    checkedAt: new Date().toISOString(),
+  };
+  // No se cachean tandas cortadas por el límite de cuota, para poder reintentar.
+  if (!results.some((r) => r.problems.includes("rate_limited")))
+    cache.set(batch, { at: Date.now(), body });
+  return NextResponse.json(body);
 }
