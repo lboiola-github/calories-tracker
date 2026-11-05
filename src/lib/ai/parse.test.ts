@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { numbersIn, sanitizeInterpretation } from "./parse";
+import { numbersIn, sanitizeInterpretation, wordBefore } from "./parse";
 
 describe("numbersIn", () => {
   it("lee dígitos, palabras y fracciones", () => {
@@ -101,6 +101,46 @@ describe("sanitizeInterpretation", () => {
       "2 huevos y banana",
     );
     expect(far.items[0].quantity).toBeNull();
+  });
+
+  it("el artículo un/una cuenta como 1 si el modelo no dio cantidad", () => {
+    const item = (fragment: string, food: string) => ({
+      fragment,
+      food,
+      quantity: null,
+      unit: null,
+      preparation: null,
+    });
+    const out = sanitizeInterpretation(
+      {
+        meal_type: null,
+        day: null,
+        items: [
+          item("una manzana verde", "manzana"),
+          item("té", "té"),
+          item("café con leche", "café con leche"),
+          item("vaso de jugo", "jugo"),
+          item("un poco de queso", "queso"),
+          item("medialunas", "medialuna"),
+        ],
+      },
+      "una manzana verde, un té, un café con leche, un vaso de jugo, un poco de queso y medialunas",
+    );
+    expect(out.items.map((i) => [i.quantity, i.unit])).toEqual([
+      [1, "unidad"],
+      [1, "unidad"],
+      [1, "unidad"],
+      [1, "vaso"],
+      [null, null],
+      [null, null],
+    ]);
+  });
+
+  it("wordBefore busca palabras completas", () => {
+    expect(wordBefore("un te y una tostada", "te")).toBe("un");
+    expect(wordBefore("verde te", "te")).toBe("verde");
+    expect(wordBefore("comi tostadas", "te")).toBe("");
+    expect(wordBefore("te", "te")).toBe("");
   });
 
   it("si el fragmento no es del mensaje, verifica contra el mensaje entero", () => {
