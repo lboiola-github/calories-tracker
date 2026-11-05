@@ -2,6 +2,7 @@
 
 import { requireUser } from "@/lib/auth";
 import { InterpretError, interpretText, isAiConfigured } from "@/lib/ai/groq";
+import { transcribeAudio } from "@/lib/ai/transcribe";
 import { pickMatch, resolveGrams, type ResolvedItem } from "@/lib/ai/resolve";
 import { getFoods, searchFoods } from "@/lib/data/foods";
 import { addDays, DEFAULT_TIMEZONE, localDate, localHour } from "@/lib/dates";
@@ -58,4 +59,23 @@ export async function interpretMeal(text: string): Promise<ActionResult<Interpre
       items,
     },
   };
+}
+
+const AUDIO_TYPES = /^audio\/(mp4|m4a|x-m4a|aac|webm|ogg|mpeg|wav)/;
+
+/** Transcribe lo que dictó el usuario. El audio no se guarda en ningún lado. */
+export async function transcribeMeal(formData: FormData): Promise<ActionResult<{ text: string }>> {
+  await requireUser();
+  if (!isAiConfigured()) return { ok: false, error: "La transcripción todavía no está activa. Escribilo." };
+  const audio = formData.get("audio");
+  if (!(audio instanceof File) || audio.size === 0) return { ok: false, error: "No se grabó audio." };
+  if (audio.size > 3 * 1024 * 1024 || !AUDIO_TYPES.test(audio.type)) return { ok: false, error: "El audio no es válido. Probá de nuevo." };
+  const ext = audio.type.includes("webm") ? "webm" : audio.type.includes("ogg") ? "ogg" : audio.type.includes("wav") ? "wav" : audio.type.includes("mpeg") ? "mp3" : "m4a";
+  try {
+    const text = await transcribeAudio(audio, `dictado.${ext}`);
+    if (!text) return { ok: false, error: "No se entendió el audio. Probá de nuevo o escribilo." };
+    return { ok: true, data: { text } };
+  } catch (e) {
+    return { ok: false, error: e instanceof InterpretError ? e.message : "No se pudo transcribir. Escribilo." };
+  }
 }
