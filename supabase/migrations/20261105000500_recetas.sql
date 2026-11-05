@@ -118,6 +118,8 @@ begin
     end if;
     raise exception 'editá la receta para cambiar este alimento' using errcode = '42501';
   end if;
+  -- Un trigger BEFORE DELETE que devuelve null cancela el borrado: devolver old.
+  if tg_op = 'DELETE' then return old; end if;
   if new.recipe_id is not null or new.source_type = 'recipe' then
     raise exception 'los alimentos de receta se crean desde la receta' using errcode = '42501';
   end if;
@@ -135,7 +137,8 @@ set search_path = ''
 as $$
 declare v_food uuid := coalesce(new.food_id, old.food_id);
 begin
-  if current_setting('app.recipe_write', true) = 'on' then
+  -- Quitar una unidad no altera los valores de la receta; la app quita así la "porción" sobrante.
+  if tg_op = 'DELETE' or current_setting('app.recipe_write', true) = 'on' then
     return coalesce(new, old);
   end if;
   if exists (select 1 from public.foods f where f.id = v_food and f.recipe_id is not null) then
@@ -283,11 +286,14 @@ begin
     from public.recipe_versions v where v.id = v_version_id and f.id = v_food_id;
   end if;
 
-  delete from public.food_units where food_id = v_food_id;
-  insert into public.food_units (user_id, food_id, name, grams) values (v_user, v_food_id, 'receta entera', v_final);
+  -- Unidades: se actualizan en el lugar. Si la versión no tiene porciones, la app quita
+  -- después la unidad "porción" (quitar una unidad no cambia los valores de la receta).
+  insert into public.food_units (user_id, food_id, name, grams) values (v_user, v_food_id, 'receta entera', v_final)
+    on conflict (food_id, name_normalized) do update set grams = excluded.grams;
   if p_portions is not null then
     insert into public.food_units (user_id, food_id, name, grams)
-    values (v_user, v_food_id, 'porción', round(v_final / p_portions, 2));
+    values (v_user, v_food_id, 'porción', round(v_final / p_portions, 2))
+    on conflict (food_id, name_normalized) do update set grams = excluded.grams;
   end if;
   perform set_config('app.recipe_write', 'off', true);
 
