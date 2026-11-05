@@ -27,6 +27,19 @@ const send = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
+// Alimentos guardados con save_food durante las pruebas (para leerlos de vuelta por id).
+const savedFoods = new Map();
+const CHICKEN = {
+  fdcId: 171477, dataType: "SR Legacy", description: "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+  foodNutrients: [
+    { nutrientId: 1008, nutrientNumber: "208", nutrientName: "Energy", unitName: "KCAL", value: 165 },
+    { nutrientId: 1003, nutrientNumber: "203", nutrientName: "Protein", unitName: "G", value: 31.02 },
+    { nutrientId: 1004, nutrientNumber: "204", nutrientName: "Total lipid (fat)", unitName: "G", value: 3.57 },
+    { nutrientId: 1005, nutrientNumber: "205", nutrientName: "Carbohydrate, by difference", unitName: "G", value: 0 },
+  ],
+  foodMeasures: [{ disseminationText: "1 cup, chopped or diced", gramWeight: 140 }],
+};
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let body = "";
@@ -51,23 +64,32 @@ createServer(async (req, res) => {
   // Datos: respuesta de "usuario sin datos". La lógica real de la base (RLS, funciones)
   // se prueba con npm run test:db sobre Postgres; acá solo se prueba la interfaz.
   if (url.pathname.startsWith("/rest/v1/")) {
+    if (url.pathname === "/rest/v1/rpc/save_food" && !json.p_id) {
+      const id = `33333333-3333-4333-8333-${String(savedFoods.size + 1).padStart(12, "0")}`;
+      const f = json.p_food;
+      savedFoods.set(id, {
+        id, name: f.name, preparation: f.preparation, brand: f.brand || null,
+        kcal_per_100g: f.kcal_per_100g, protein_per_100g: f.protein_per_100g, carbs_per_100g: f.carbs_per_100g,
+        fat_per_100g: f.fat_per_100g, fiber_per_100g: f.fiber_per_100g, source_type: f.source_type, source_ref: f.source_ref,
+        validated: f.validated, archived_at: null, created_at: new Date().toISOString(),
+        food_units: json.p_units.map((u, i) => ({ id: `u${i}`, ...u })), food_aliases: [],
+      });
+      return send(res, 200, id);
+    }
     if (url.pathname.startsWith("/rest/v1/rpc/")) return send(res, 200, null);
+    const ids = /^in\.\((.*)\)$|^eq\.(.*)$/.exec(url.searchParams.get("id") ?? "");
+    if (url.pathname === "/rest/v1/foods" && req.method === "GET" && ids) {
+      const wanted = (ids[1] ?? ids[2]).split(",").map((x) => x.replace(/"/g, ""));
+      return send(res, 200, wanted.map((id) => savedFoods.get(id)).filter(Boolean));
+    }
     if (req.method === "GET" || req.method === "HEAD") return send(res, 200, []);
     return send(res, 201, []);
   }
   // Referencias nutricionales simuladas (USDA_BASE_URL y OFF_BASE_URL apuntan acá).
   if (url.pathname === "/usda/foods/search") {
-    return send(res, 200, { foods: [{
-      fdcId: 171477, dataType: "SR Legacy", description: "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
-      foodNutrients: [
-        { nutrientId: 1008, nutrientNumber: "208", nutrientName: "Energy", unitName: "KCAL", value: 165 },
-        { nutrientId: 1003, nutrientNumber: "203", nutrientName: "Protein", unitName: "G", value: 31.02 },
-        { nutrientId: 1004, nutrientNumber: "204", nutrientName: "Total lipid (fat)", unitName: "G", value: 3.57 },
-        { nutrientId: 1005, nutrientNumber: "205", nutrientName: "Carbohydrate, by difference", unitName: "G", value: 0 },
-      ],
-      foodMeasures: [{ disseminationText: "1 cup, chopped or diced", gramWeight: 140 }],
-    }] });
+    return send(res, 200, { foods: [CHICKEN] });
   }
+  if (url.pathname === "/usda/food/171477") return send(res, 200, CHICKEN);
   if (url.pathname === "/off/cgi/search.pl") return send(res, 503, { error: "simulado" });
   send(res, 404, { msg: `mock: ruta no implementada ${req.method} ${url.pathname}` });
 }).listen(PORT, () => console.log(`mock supabase en :${PORT}`));

@@ -7,6 +7,10 @@ import { getFoods, searchFoods, type FoodSearchHit } from "@/lib/data/foods";
 import { isIsoDate } from "@/lib/dates";
 import { isMealType, type MealType } from "@/lib/meals";
 import { nutrientsFor, toGrams } from "@/lib/nutrition/calc";
+import { getOffProduct } from "@/lib/references/off";
+import { foodFromReference } from "@/lib/references/to-food";
+import { ReferenceError, type ReferenceCandidate } from "@/lib/references/types";
+import { getUsdaFood } from "@/lib/references/usda";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult<T = unknown> = { ok: true; data: T } | { ok: false; error: string };
@@ -29,6 +33,74 @@ export async function foodUnits(foodId: string): Promise<ActionResult<{ name: st
   if (!uuid.safeParse(foodId).success) return { ok: false, error: "Datos inválidos." };
   const [food] = await getFoods(await createClient(), [foodId]);
   return { ok: true, data: food ? food.units.map((u) => ({ name: u.name, grams: u.grams })) : [] };
+}
+
+const refSchema = z.object({
+  source: z.enum(["usda", "off"]),
+  ref: z.string().regex(/^\d{1,14}$/),
+  typedName: z.string().max(120),
+});
+
+export type AddedFood = { hit: FoodSearchHit; units: { name: string; grams: number }[] };
+
+/**
+ * Agrega al catálogo un alimento elegido de USDA u Open Food Facts, para poder registrarlo sin
+ * cargarlo antes. Los valores se vuelven a pedir a la fuente acá: no se confía en lo que manda el
+ * cliente. Si ya estaba en el catálogo (misma fuente y referencia), se reutiliza.
+ */
+export async function addReferenceFood(input: z.input<typeof refSchema>): Promise<ActionResult<AddedFood>> {
+  await requireUser();
+  const parsed = refSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+  const { source, ref, typedName } = parsed.data;
+  const supabase = await createClient();
+
+  const toResult = async (id: string): Promise<ActionResult<AddedFood>> => {
+    const [food] = await getFoods(supabase, [id]);
+    if (!food) return { ok: false, error: "No se pudo agregar el alimento." };
+    return {
+      ok: true,
+      data: {
+        hit: {
+          id: food.id,
+          name: food.name,
+          preparation: food.preparation,
+          brand: food.brand,
+          kcalPer100g: food.per100.kcal,
+          validated: food.validated,
+          score: 1,
+        },
+        units: food.units.map((u) => ({ name: u.name, grams: u.grams })),
+      },
+    };
+  };
+
+  const { data: existing } = await supabase
+    .from("foods")
+    .select("id")
+    .eq("source_type", source)
+    .eq("source_ref", ref)
+    .is("archived_at", null)
+    .limit(1);
+  if (existing?.[0]?.id) return toResult(existing[0].id);
+
+  let candidate: ReferenceCandidate;
+  try {
+    candidate = source === "usda" ? await getUsdaFood(ref) : await getOffProduct(ref);
+  } catch (e) {
+    return { ok: false, error: e instanceof ReferenceError ? e.message : "No se pudo consultar la fuente." };
+  }
+  const { units, aliases, ...food } = foodFromReference(candidate, typedName);
+  const { data: id, error } = await supabase.rpc("save_food", { p_id: null, p_food: food, p_units: units, p_aliases: aliases });
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: `Ya tenés “${food.name}” en tu catálogo con otros valores. Elegilo de la lista o cambiá la búsqueda.` };
+    }
+    return { ok: false, error: "No se pudo agregar el alimento." };
+  }
+  if (typeof id !== "string") return { ok: false, error: "No se pudo agregar el alimento." };
+  revalidatePath("/alimentos");
+  return toResult(id);
 }
 
 const logSchema = z.object({
