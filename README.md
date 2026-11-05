@@ -18,6 +18,8 @@ El plan técnico completo y las etapas están en el documento del proyecto. Este
 2. **Variables en Vercel** (Settings → Environment Variables, para Production y Preview) y en `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`: Project Settings → API → Project URL.
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Project Settings → API Keys → publishable key.
+   - `USDA_API_KEY` (opcional, solo servidor): clave gratuita de [FoodData Central](https://fdc.nal.usda.gov/api-key-signup).
+     Sin ella se usa `DEMO_KEY`, que se agota rápido.
 3. **Migraciones automáticas**: en GitHub → Settings → Secrets and variables → Actions, crear
    `SUPABASE_ACCESS_TOKEN` ([crear token](https://supabase.com/dashboard/account/tokens)),
    `SUPABASE_DB_PASSWORD` (la contraseña de la base) y `SUPABASE_PROJECT_ID` (el subdominio de la Project URL).
@@ -80,3 +82,13 @@ supabase/tests      pruebas SQL (aislamiento entre usuarios)
 e2e/                pruebas de extremo a extremo (Playwright)
 scripts/            herramientas de desarrollo
 ```
+
+## Referencias nutricionales
+
+En el formulario de alimento, "Buscar valores en USDA u Open Food Facts" consulta ambas fuentes desde el servidor
+(por nombre, código de barras o `fdc 171477`). Nada se guarda sin que revises y toques Guardar.
+USDA solo está en inglés: la app traduce las palabras comunes (pollo → chicken) y muestra qué buscó.
+Energía: se usa la publicada en kcal; si solo hay kJ se convierte (÷ 4,184); nunca se calcula desde los macros.
+Los datos de Open Food Facts quedan sin validar (son colaborativos). Atribución: USDA FoodData Central (dominio
+público) y Open Food Facts (ODbL).
+Los parsers se probaron con respuestas de ejemplo escritas según la documentación de cada API, no con respuestas reales.

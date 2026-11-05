@@ -5,7 +5,8 @@ import { formatKcal, parseDecimal } from "@/lib/format";
 import { PREPARATIONS } from "@/lib/meals";
 import { atwaterKcal, energyMismatch } from "@/lib/nutrition/calc";
 import { saveFood, type FoodFormState } from "./actions";
-import type { FoodFormValues } from "./food-values";
+import { applyReference, type FoodFormValues } from "./food-values";
+import { ReferencePicker } from "./reference-picker";
 
 const SOURCES = [
   ["label", "Etiqueta del producto"],
@@ -38,6 +39,8 @@ export function FoodForm({ values, returnTo }: { values: FoodFormValues; returnT
     <form action={action} className="space-y-6">
       <input type="hidden" name="id" value={v.id ?? ""} />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+
+      <ReferencePicker initialQuery={values.name} onPick={(c) => setV((s) => applyReference(s, c))} />
 
       <div className="space-y-3">
         <Field label="Nombre" error={err.name}>

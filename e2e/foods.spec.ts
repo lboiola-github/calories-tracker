@@ -59,3 +59,18 @@ test("historial navega entre días sin pasar de hoy", async ({ page }) => {
   await label.getByRole("link", { name: "Día siguiente" }).click();
   await expect(label.getByRole("link", { name: "Día siguiente" })).toHaveCount(0);
 });
+
+test("referencias: elegir un resultado de USDA carga los valores y la fuente", async ({ page }) => {
+  await page.goto("/alimentos/nuevo?nombre=Pechuga%20de%20pollo");
+  await page.getByRole("button", { name: /Buscar valores en USDA/ }).click();
+  await expect(page.getByText("En USDA se buscó: “breast chicken”.")).toBeVisible();
+  // Open Food Facts falla en el simulador: se informa y USDA sigue sirviendo.
+  await expect(page.getByText("Open Food Facts: Open Food Facts no está disponible ahora.")).toBeVisible();
+  await page.getByRole("button", { name: "Usar estos valores" }).click();
+  await expect(page.getByLabel("Nombre", { exact: true })).toHaveValue("Pechuga de pollo");
+  await expect(page.getByLabel("Calorías (kcal)")).toHaveValue("165");
+  await expect(page.getByLabel("Proteínas (g)")).toHaveValue("31,02");
+  await expect(page.getByLabel("Fuente")).toHaveValue("usda");
+  await expect(page.getByLabel("Referencia (opcional)")).toHaveValue("171477");
+  await expect(page.getByLabel("Nombre de la unidad")).toHaveValue("1 cup, chopped or diced");
+});
