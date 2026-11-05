@@ -20,26 +20,25 @@ type Result = {
   got?: unknown;
 };
 
+// Sin reintentos: con 429 la tanda vuelve enseguida marcada "rate_limited" y no se cachea.
 async function runCase(i: number, c: EvalCase): Promise<Result> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const out = await interpretText(c.text);
-      const problems = checkCase(c, out);
-      return {
-        i,
-        text: c.text,
-        ok: problems.length === 0,
-        problems,
-        ...(problems.length ? { got: out.items } : {}),
-      };
-    } catch (e) {
-      const kind = e instanceof InterpretError ? e.kind : "error";
-      if (kind === "rate_limited" && attempt === 0) {
-        await new Promise((r) => setTimeout(r, 8000));
-        continue;
-      }
-      return { i, text: c.text, ok: false, problems: [kind] };
-    }
+  try {
+    const out = await interpretText(c.text);
+    const problems = checkCase(c, out);
+    return {
+      i,
+      text: c.text,
+      ok: problems.length === 0,
+      problems,
+      ...(problems.length ? { got: out.items } : {}),
+    };
+  } catch (e) {
+    return {
+      i,
+      text: c.text,
+      ok: false,
+      problems: [e instanceof InterpretError ? e.kind : "error"],
+    };
   }
 }
 
