@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   getOffProduct,
   isBarcode,
+  offText,
   parseOffProduct,
   pickOffEnergy,
 } from "./off";
@@ -270,6 +271,23 @@ describe("USDA", () => {
 });
 
 describe("Open Food Facts", () => {
+  it("acepta campos como lista o por idioma (buscador nuevo)", () => {
+    expect(offText(["Marca X", "Otra"])).toBe("Marca X, Otra");
+    expect(offText({ es: "Dulce de leche", en: "Milk jam" })).toBe(
+      "Dulce de leche",
+    );
+    expect(offText(null)).toBe("");
+    const c = parseOffProduct({
+      ...OFF_DULCE,
+      brands: ["Marca X", "Otra"],
+      product_name: { main: "Dulce de leche clásico" },
+    });
+    expect(c).toMatchObject({
+      name: "Dulce de leche clásico",
+      brand: "Marca X",
+    });
+  });
+
   it("reconoce códigos de barras", () => {
     expect(isBarcode("7790580000001")).toBe(true);
     expect(isBarcode("12345678")).toBe(true);

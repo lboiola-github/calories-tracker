@@ -57,12 +57,10 @@ export function foodFromReference(
     },
     // Datos colaborativos o inconsistentes quedan sin validar.
     validated: c.source === "usda" && !mismatch,
-    units: c.portions
-      .slice(0, 3)
-      .map((p) => ({
-        name: p.name.slice(0, 40),
-        grams: Math.round(p.grams * 100) / 100,
-      })),
+    units: c.portions.slice(0, 3).map((p) => ({
+      name: p.name.slice(0, 40),
+      grams: Math.round(p.grams * 100) / 100,
+    })),
     aliases:
       c.name.toLowerCase() !== name.toLowerCase() ? [c.name.slice(0, 120)] : [],
   };
