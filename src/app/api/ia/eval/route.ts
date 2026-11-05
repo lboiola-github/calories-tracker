@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import cases from "../../../../../evals/interpretacion.json";
 import { checkCase, type EvalCase } from "@/lib/ai/eval";
@@ -7,28 +6,29 @@ import { InterpretError, interpretText } from "@/lib/ai/groq";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Solo el hash del token está en el código; el token no se publica.
-const TOKEN_SHA256 =
-  "87fc09e360072071031de732a32af1fd0d961bb6511becd9eb3d4aef9dbafa32";
+// Público pero acotado: cada tanda se calcula a lo sumo una vez cada 6 horas (cuota gratuita).
+// Los casos están en el repositorio y no tienen datos personales.
+const TTL = 6 * 60 * 60_000;
+const cache = new Map<string, { at: number; body: object }>();
 
-function authorized(token: string | null) {
-  if (!token) return false;
-  const got = createHash("sha256").update(token).digest();
-  return timingSafeEqual(got, Buffer.from(TOKEN_SHA256, "hex"));
-}
-
-/** Corre una tanda de la evaluación (evals/interpretacion.json) contra Groq real. ?t=token&desde=0&hasta=6 */
+/** Corre una tanda de la evaluación (evals/interpretacion.json) contra Groq real. ?tanda=1 */
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
-  if (!authorized(q.get("t")))
-    return NextResponse.json({ error: "no autorizado" }, { status: 404 });
   const all = cases as EvalCase[];
-  const from = Math.max(0, Number(q.get("desde") ?? 0) || 0);
-  const to = Math.min(
-    all.length,
-    Number(q.get("hasta") ?? from + 6) || from + 6,
-    from + 8,
-  );
+  // Solo tandas fijas de 6 casos, para que el caché no se pueda esquivar con otros rangos.
+  const batches = Math.ceil(all.length / 6);
+  const batch = Number(q.get("tanda"));
+  if (!Number.isInteger(batch) || batch < 1 || batch > batches)
+    return NextResponse.json(
+      { error: `tanda debe ser 1 a ${batches}` },
+      { status: 400 },
+    );
+  const from = (batch - 1) * 6;
+  const to = Math.min(all.length, from + 6);
+  const key = `${from}-${to}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < TTL)
+    return NextResponse.json({ ...hit.body, cached: true });
   const results: {
     i: number;
     text: string;
