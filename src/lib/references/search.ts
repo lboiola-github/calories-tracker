@@ -1,6 +1,10 @@
 import { getOffProduct, isBarcode, searchOff } from "./off";
 import { toUsdaQuery } from "./translate";
-import { ReferenceError, type ReferenceCandidate, type ReferenceSource } from "./types";
+import {
+  ReferenceError,
+  type ReferenceCandidate,
+  type ReferenceSource,
+} from "./types";
 import { getUsdaFood, searchUsda } from "./usda";
 
 export type ReferenceSearchResult = {
@@ -13,13 +17,15 @@ export type ReferenceSearchResult = {
 /** Límite propio para no superar las 10 búsquedas/min de OFF desde esta instancia. */
 const offSearches: number[] = [];
 function takeOffSearchSlot(now = Date.now()): boolean {
-  while (offSearches.length && now - offSearches[0] > 60_000) offSearches.shift();
+  while (offSearches.length && now - offSearches[0] > 60_000)
+    offSearches.shift();
   if (offSearches.length >= 8) return false;
   offSearches.push(now);
   return true;
 }
 
-const message = (e: unknown) => (e instanceof ReferenceError ? e.message : "No se pudo consultar la fuente.");
+const message = (e: unknown) =>
+  e instanceof ReferenceError ? e.message : "No se pudo consultar la fuente.";
 
 export async function searchReferences(
   rawQuery: string,
@@ -27,7 +33,11 @@ export async function searchReferences(
 ): Promise<ReferenceSearchResult> {
   const query = rawQuery.trim().slice(0, 100);
   const fetchImpl = opts.fetchImpl ?? fetch;
-  const result: ReferenceSearchResult = { candidates: [], errors: [], usdaQuery: null };
+  const result: ReferenceSearchResult = {
+    candidates: [],
+    errors: [],
+    usdaQuery: null,
+  };
   if (query.length < 2) return result;
 
   // Código de barras: solo Open Food Facts.
@@ -56,11 +66,18 @@ export async function searchReferences(
     searchUsda(result.usdaQuery, { fetchImpl }),
     takeOffSearchSlot()
       ? searchOff(query, fetchImpl)
-      : Promise.reject(new ReferenceError("Demasiadas búsquedas en Open Food Facts. Esperá un minuto.", "rate_limited")),
+      : Promise.reject(
+          new ReferenceError(
+            "Demasiadas búsquedas en Open Food Facts. Esperá un minuto.",
+            "rate_limited",
+          ),
+        ),
   ]);
-  if (usda.status === "fulfilled") result.candidates.push(...usda.value.slice(0, 10));
+  if (usda.status === "fulfilled")
+    result.candidates.push(...usda.value.slice(0, 10));
   else result.errors.push({ source: "usda", message: message(usda.reason) });
-  if (off.status === "fulfilled") result.candidates.push(...off.value.slice(0, 10));
+  if (off.status === "fulfilled")
+    result.candidates.push(...off.value.slice(0, 10));
   else result.errors.push({ source: "off", message: message(off.reason) });
   return result;
 }

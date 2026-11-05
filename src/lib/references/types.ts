@@ -22,7 +22,11 @@ export type ReferenceCandidate = {
 export class ReferenceError extends Error {
   constructor(
     message: string,
-    readonly kind: "rate_limited" | "unavailable" | "not_found" | "bad_response",
+    readonly kind:
+      | "rate_limited"
+      | "unavailable"
+      | "not_found"
+      | "bad_response",
   ) {
     super(message);
   }
