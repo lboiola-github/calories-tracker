@@ -45,3 +45,9 @@ test("los campos de login permiten autocompletar con el llavero de iOS", async (
   await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "username");
   await expect(page.getByLabel("Contraseña")).toHaveAttribute("autocomplete", "current-password");
 });
+
+test("la exportación sin sesión no devuelve datos", async ({ request }) => {
+  const res = await request.get("/exportar/comidas", { maxRedirects: 0 });
+  expect([302, 303, 307]).toContain(res.status());
+  expect(res.headers()["location"]).toContain("/login");
+});

@@ -39,3 +39,13 @@ test("sin datos, no inventa valores", async ({ page }) => {
   await expect(page.getByText("Objetivo sin definir")).toBeVisible();
   await expect(page.getByTestId("remaining")).toHaveText("—");
 });
+
+test("exportar: descarga CSV de peso solo con sesión", async ({ page }) => {
+  await page.goto("/ajustes");
+  const download = page.waitForEvent("download");
+  await page.getByRole("region", { name: "Exportar" }).getByRole("link", { name: "Peso" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("calorias-peso.csv");
+  const fs = await import("node:fs/promises");
+  expect(await fs.readFile((await file.path())!, "utf8")).toBe("﻿Fecha;Peso (kg);Nota\r\n");
+});
