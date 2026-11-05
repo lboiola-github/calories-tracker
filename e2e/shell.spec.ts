@@ -1,4 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { login } from "./helpers";
+
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.startsWith("el manifest")) return;
+  await login(page);
+});
 
 test("el manifest permite instalar la app en modo standalone", async ({ request }) => {
   const res = await request.get("/manifest.webmanifest");
