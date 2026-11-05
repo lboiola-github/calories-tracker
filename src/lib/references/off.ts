@@ -18,11 +18,11 @@ const FIELDS =
   "code,product_name,product_name_es,generic_name_es,brands,nutriments,nutrition_data_per,serving_size,serving_quantity,quantity";
 
 type OffProduct = {
-  code?: string;
-  product_name?: string;
-  product_name_es?: string;
-  generic_name_es?: string;
-  brands?: string;
+  code?: unknown;
+  product_name?: unknown;
+  product_name_es?: unknown;
+  generic_name_es?: unknown;
+  brands?: unknown;
   nutriments?: Record<string, unknown>;
   nutrition_data_per?: string;
   serving_size?: string;
@@ -57,18 +57,33 @@ export function pickOffEnergy(
   return null;
 }
 
+/**
+ * El buscador nuevo devuelve algunos campos como listas (brands) o por idioma ({ es, en, main }).
+ * Se normalizan a texto antes de usarlos.
+ */
+export function offText(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  if (Array.isArray(v)) return v.map(offText).filter(Boolean).join(", ");
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return offText(o.es ?? o.main ?? o.en ?? Object.values(o)[0] ?? "");
+  }
+  return "";
+}
+
 export function parseOffProduct(p: OffProduct): ReferenceCandidate | null {
-  const n = p.nutriments ?? {};
+  const n =
+    p.nutriments && typeof p.nutriments === "object" ? p.nutriments : {};
   const energy = pickOffEnergy(n);
   const protein = num(n.proteins_100g);
   const carbs = num(n.carbohydrates_100g);
   const fat = num(n.fat_100g);
-  const code = String(p.code ?? "").trim();
+  const code = offText(p.code).trim();
   const name = (
-    p.product_name_es ||
-    p.product_name ||
-    p.generic_name_es ||
-    ""
+    offText(p.product_name_es) ||
+    offText(p.product_name) ||
+    offText(p.generic_name_es)
   ).trim();
   if (
     !energy ||
@@ -99,7 +114,7 @@ export function parseOffProduct(p: OffProduct): ReferenceCandidate | null {
     );
   }
   // Si el producto declara la tabla "por porción", los *_100g los calculó OFF: conviene verificar con la etiqueta.
-  if (p.nutrition_data_per && p.nutrition_data_per !== "100g") {
+  if (p.nutrition_data_per && offText(p.nutrition_data_per) !== "100g") {
     warnings.push(
       "La etiqueta está cargada por porción: OFF calculó los valores por 100 g.",
     );
@@ -114,7 +129,7 @@ export function parseOffProduct(p: OffProduct): ReferenceCandidate | null {
     source: "off",
     ref: code,
     name: name.slice(0, 120),
-    brand: p.brands?.split(",")[0]?.trim() || null,
+    brand: offText(p.brands).split(",")[0]?.trim() || null,
     detail: "Open Food Facts",
     per100,
     energyBasis: energy.basis,
@@ -211,7 +226,13 @@ export async function searchOff(
   const ar = (p: { countries_tags?: string[] }) =>
     (p.countries_tags ?? []).includes("en:argentina");
   return [...hits.filter(ar), ...hits.filter((p) => !ar(p))]
-    .map(parseOffProduct)
+    .map((p) => {
+      try {
+        return parseOffProduct(p);
+      } catch {
+        return null; // un producto con datos raros no tumba la búsqueda
+      }
+    })
     .filter((c): c is ReferenceCandidate => c !== null)
     .slice(0, 15);
 }

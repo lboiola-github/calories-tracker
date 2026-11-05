@@ -17,7 +17,10 @@ async function check(run: () => Promise<{ name: string }[]>) {
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof ReferenceError ? `${e.kind}: ${e.message}` : "error",
+      error:
+        e instanceof ReferenceError
+          ? `${e.kind}: ${e.message}`
+          : `${e instanceof Error ? e.name : "error"}: ${e instanceof Error ? e.message.slice(0, 200) : ""}`,
     };
   }
 }
