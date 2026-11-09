@@ -112,3 +112,39 @@ select {
     opacity: 1;
   }
 }
+
+/*
+ * Respuesta al toque en todo lo tocable: se nota en el mismo instante aunque la acción
+ * o la pantalla siguiente tarden.
+ */
+a,
+button,
+[role="button"],
+summary,
+label:has(> input[type="file"]) {
+  transition-property: opacity, transform, background-color, color;
+  transition-duration: 120ms;
+}
+a:active,
+button:not(:disabled):active,
+[role="button"]:active,
+summary:active {
+  opacity: 0.6;
+}
+
+.animate-nav-progress {
+  width: 85%;
+  animation: nav-progress 8s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+
+@keyframes nav-progress {
+  from {
+    width: 0%;
+  }
+  10% {
+    width: 35%;
+  }
+  to {
+    width: 85%;
+  }
+}

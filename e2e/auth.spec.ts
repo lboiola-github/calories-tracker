@@ -40,6 +40,31 @@ test("login, sesión persistente y cierre de sesión", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("dispositivo recordado: si se pierde la sesión, vuelve a entrar sin pedir login", async ({ page, context }) => {
+  await login(page);
+  const device = (await context.cookies()).find((c) => c.name === "cal_device");
+  expect(device?.httpOnly).toBe(true);
+  expect(device?.value).not.toContain("contraseña");
+
+  // Simula una sesión revocada por Supabase: quedan solo las cookies del dispositivo.
+  await page.goto("about:blank");
+  const keep = (await context.cookies()).filter((c) => !c.name.startsWith("sb-"));
+  await context.clearCookies();
+  await context.addCookies(keep);
+  await page.goto("/historial");
+  await expect(page.getByRole("heading", { level: 1, name: "Historial" })).toBeVisible();
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/$/);
+
+  // Una cookie inválida no sirve y se descarta (antes se sale de la app para cortar prefetches).
+  await page.goto("about:blank");
+  await context.clearCookies();
+  await context.addCookies([{ ...device!, value: "v1.basura" }]);
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/login$/);
+  expect((await context.cookies()).find((c) => c.name === "cal_device")).toBeUndefined();
+});
+
 test("los campos de login permiten autocompletar con el llavero de iOS", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "username");

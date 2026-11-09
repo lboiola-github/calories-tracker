@@ -16,8 +16,8 @@ const C = 2 * Math.PI * R;
  * Anillo de progreso con las calorías restantes al centro. Si se pasa del objetivo,
  * el anillo se completa en coral y el número muestra cuánto por encima.
  */
-export function DaySummary({ target, total }: { target: number | null; total: Nutrients }) {
-  const p = dayProgress(target, total.kcal);
+export function DaySummary({ target, total, burned = 0 }: { target: number | null; total: Nutrients; burned?: number }) {
+  const p = dayProgress(target, total.kcal, burned);
   const over = p.remaining != null && p.remaining < 0;
   const fraction = p.percent == null ? 0 : Math.min(100, p.percent) / 100;
   const ring = over ? "var(--danger)" : "var(--accent)";
@@ -71,19 +71,10 @@ export function DaySummary({ target, total }: { target: number | null; total: Nu
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
-        <div className="rounded-2xl bg-surface-2 px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-ink-3">Consumido</p>
-          <p className="tabular mt-0.5 text-xl font-semibold" data-testid="consumed">
-            {formatKcal(total.kcal)} <span className="text-sm font-normal text-ink-2">kcal</span>
-          </p>
-        </div>
-        <div className="rounded-2xl bg-surface-2 px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-ink-3">Meta</p>
-          <p className="tabular mt-0.5 text-xl font-semibold">
-            {target != null ? formatKcal(target) : "—"} <span className="text-sm font-normal text-ink-2">kcal</span>
-          </p>
-        </div>
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <Tile label="Consumido" testId="consumed" value={formatKcal(total.kcal)} />
+        <Tile label="Actividad" testId="burned" value={burned > 0 ? `+${formatKcal(burned)}` : "0"} accent={burned > 0} />
+        <Tile label="Meta" value={target != null ? formatKcal(target) : "—"} />
       </div>
 
       <dl className="mt-5 space-y-3">
@@ -105,5 +96,16 @@ export function DaySummary({ target, total }: { target: number | null; total: Nu
         ))}
       </dl>
     </section>
+  );
+}
+
+function Tile({ label, value, testId, accent }: { label: string; value: string; testId?: string; accent?: boolean }) {
+  return (
+    <div className="rounded-2xl bg-surface-2 px-3 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-ink-3">{label}</p>
+      <p className={`tabular mt-0.5 text-lg font-semibold ${accent ? "text-accent" : ""}`} data-testid={testId}>
+        {value} <span className="text-xs font-normal text-ink-2">kcal</span>
+      </p>
+    </div>
   );
 }

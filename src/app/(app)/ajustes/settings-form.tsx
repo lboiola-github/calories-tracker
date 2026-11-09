@@ -13,6 +13,7 @@ import {
   type TargetWarning,
 } from "@/lib/metabolism/metabolism";
 import { saveSettings, type SettingsState } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 const initialState: SettingsState = { status: "idle", message: null, fieldErrors: {} };
 
@@ -247,7 +248,8 @@ export function SettingsForm({ initial, today }: Props) {
           disabled={pending}
           className="h-13 w-full rounded-2xl bg-accent text-[17px] font-semibold text-accent-ink shadow-lg transition-opacity disabled:opacity-60"
         >
-          {pending ? "Guardando…" : "Guardar"}
+          {pending && <Spinner className="mr-2 size-4 align-[-2px]" />}
+        {pending ? "Guardando…" : "Guardar"}
         </button>
         <p aria-live="polite" className={`mt-2 text-center text-sm ${state.status === "error" ? "text-danger" : "text-success"}`}>
           {state.message}

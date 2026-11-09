@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { MealComposer } from "@/components/meal-composer";
 import { NAV_ITEMS, isActive } from "./nav-items";
 
@@ -13,13 +14,17 @@ import { NAV_ITEMS, isActive } from "./nav-items";
 export function BottomNav() {
   const pathname = usePathname();
   const [left, right] = [NAV_ITEMS.slice(0, 2), NAV_ITEMS.slice(2)];
+  // La pestaña tocada se marca al instante, antes de que llegue la pantalla nueva.
+  const [tapped, setTapped] = useState<{ href: string; from: string } | null>(null);
+  const current = tapped && tapped.from === pathname ? tapped.href : null;
 
   const renderItem = ({ href, label, Icon }: (typeof NAV_ITEMS)[number]) => {
-    const active = isActive(pathname, href);
+    const active = current ? current === href : isActive(pathname, href);
     return (
       <Link
         key={href}
         href={href}
+        onClick={() => !isActive(pathname, href) && setTapped({ href, from: pathname })}
         aria-current={active ? "page" : undefined}
         className={`flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium transition-colors ${
           active ? "text-accent" : "text-ink-3"

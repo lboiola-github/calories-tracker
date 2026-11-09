@@ -93,7 +93,9 @@ export function energyMismatch(per100: Per100g): number | null {
 
 export type DayProgress = { target: number | null; consumed: number; remaining: number | null; percent: number | null };
 
-export function dayProgress(target: number | null, consumed: number): DayProgress {
+/** Margen del día: la actividad física (burned) suma a lo que queda por comer. */
+export function dayProgress(target: number | null, consumed: number, burned = 0): DayProgress {
   if (target == null || target <= 0) return { target: null, consumed, remaining: null, percent: null };
-  return { target, consumed, remaining: round(target - consumed, 2), percent: round((consumed / target) * 100, 1) };
+  const budget = target + Math.max(0, burned);
+  return { target, consumed, remaining: round(budget - consumed, 2), percent: round((consumed / budget) * 100, 1) };
 }
