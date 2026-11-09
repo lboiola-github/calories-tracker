@@ -7,6 +7,17 @@ export type RecorderState = "idle" | "starting" | "recording" | "unsupported" | 
 const MAX_MS = 45_000;
 const SILENCE_MS = 1_800; // corta solo después de haber escuchado voz
 const MIN_SPEECH_MS = 400;
+const SPEECH_RMS = 0.035; // por encima de esto cuenta como voz
+const MAX_RMS = 1 / 6; // volumen con el que la animación llega a su tamaño máximo
+
+/**
+ * Nivel 0..1 para la animación. Por debajo del umbral de voz (ruido ambiente) no se mueve;
+ * de ahí al máximo crece lineal. El máximo no cambia.
+ */
+export function levelFromRms(rms: number): number {
+  if (!(rms > SPEECH_RMS)) return 0;
+  return Math.min(1, (rms - SPEECH_RMS) / (MAX_RMS - SPEECH_RMS));
+}
 
 function pickMime(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
@@ -98,10 +109,10 @@ export function useRecorder(onAudio: (blob: Blob) => void) {
         let sum = 0;
         for (const v of buf) sum += ((v - 128) / 128) ** 2;
         const rms = Math.sqrt(sum / buf.length);
-        setLevel(Math.min(1, rms * 6));
+        setLevel(levelFromRms(rms));
         const dt = now - last;
         last = now;
-        if (rms > 0.035) {
+        if (rms > SPEECH_RMS) {
           speechMs += dt;
           quietSince = 0;
         } else if (speechMs > MIN_SPEECH_MS) {
