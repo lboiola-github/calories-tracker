@@ -74,6 +74,10 @@ describe("progreso del día", () => {
     expect(dayProgress(2000, 2300).remaining).toBe(-300);
     expect(dayProgress(2000, 2300).percent).toBe(115);
   });
+  it("la actividad suma al margen del día", () => {
+    expect(dayProgress(2000, 1500, 400)).toEqual({ target: 2000, consumed: 1500, remaining: 900, percent: 62.5 });
+    expect(dayProgress(2000, 2300, 400).remaining).toBe(100);
+  });
   it("sin objetivo no inventa restante", () => {
     expect(dayProgress(null, 800)).toEqual({ target: null, consumed: 800, remaining: null, percent: null });
   });

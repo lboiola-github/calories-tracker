@@ -7,6 +7,7 @@ import { atwaterKcal, energyMismatch } from "@/lib/nutrition/calc";
 import { saveFood, type FoodFormState } from "./actions";
 import { applyReference, type FoodFormValues } from "./food-values";
 import { ReferencePicker } from "./reference-picker";
+import { Spinner } from "@/components/ui/spinner";
 
 const SOURCES = [
   ["label", "Etiqueta del producto"],
@@ -180,6 +181,7 @@ export function FoodForm({ values, returnTo }: { values: FoodFormValues; returnT
         </p>
       )}
       <button type="submit" disabled={pending} className="h-13 w-full rounded-2xl bg-accent text-[17px] font-semibold text-accent-ink disabled:opacity-60">
+        {pending && <Spinner className="mr-2 size-4 align-[-2px]" />}
         {pending ? "Guardando…" : "Guardar alimento"}
       </button>
     </form>

@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { saveWeight, type WeightFormState } from "./actions";
 import { compressPhoto } from "./compress";
+import { Spinner } from "@/components/ui/spinner";
 
 const INITIAL: WeightFormState = { status: "idle", message: null, fieldErrors: {} };
 
@@ -108,6 +109,7 @@ export function WeightForm({ today, lastKg }: { today: string; lastKg: number | 
         disabled={pending || preparing}
         className="h-13 w-full rounded-2xl bg-accent text-[17px] font-semibold text-accent-ink disabled:opacity-60"
       >
+        {pending && <Spinner className="mr-2 size-4 align-[-2px]" />}
         {pending ? "Guardando…" : "Guardar peso"}
       </button>
       <p className="text-center text-xs text-ink-3">Si ya había un peso ese día, se reemplaza.</p>

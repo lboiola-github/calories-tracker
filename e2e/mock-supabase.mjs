@@ -52,6 +52,7 @@ const norm = (t) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+const activities = [];
 const uploads = [];
 const CHICKEN = {
   fdcId: 171477,
@@ -191,6 +192,32 @@ createServer(async (req, res) => {
         res,
         200,
         wanted.map((id) => savedFoods.get(id)).filter(Boolean),
+      );
+    }
+    if (url.pathname === "/rest/v1/activity_entries") {
+      if (req.method === "POST") {
+        const rows = Array.isArray(json) ? json : [json];
+        for (const r of rows) {
+          if (activities.some((x) => x.operation_id === r.operation_id)) continue;
+          activities.push({
+            id: `66666666-6666-4666-8666-${String(activities.length + 1).padStart(12, "0")}`,
+            created_at: new Date().toISOString(),
+            deleted_at: null,
+            ...r,
+          });
+        }
+        return send(res, 201, []);
+      }
+      if (req.method === "PATCH") {
+        const id = (url.searchParams.get("id") ?? "").replace(/^eq\./, "");
+        for (const a of activities) if (a.id === id) a.deleted_at = json.deleted_at;
+        return send(res, 200, []);
+      }
+      const day = (url.searchParams.get("entry_date") ?? "").replace(/^eq\./, "");
+      return send(
+        res,
+        200,
+        activities.filter((a) => a.entry_date === day && !a.deleted_at),
       );
     }
     if (url.pathname === "/rest/v1/weight_entries" && req.method === "POST") {

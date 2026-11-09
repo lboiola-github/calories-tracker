@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DayView } from "@/components/day/day-view";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
+import { loadDayActivity, weightForDate } from "@/lib/data/activity";
 import { loadDay } from "@/lib/data/day";
 import { loadMetabolicState, targetFor } from "@/lib/data/metabolism";
 import { addDays, isIsoDate } from "@/lib/dates";
@@ -16,7 +17,12 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const state = await loadMetabolicState(supabase, user.id);
   const requested = (await searchParams).fecha;
   const date = requested && isIsoDate(requested) && requested <= state.today ? requested : addDays(state.today, -1);
-  const [target, day] = await Promise.all([targetFor(supabase, date), loadDay(supabase, date)]);
+  const [target, day, activity, weightKg] = await Promise.all([
+    targetFor(supabase, date),
+    loadDay(supabase, date),
+    loadDayActivity(supabase, date),
+    weightForDate(supabase, date),
+  ]);
   const isToday = date === state.today;
 
   return (
@@ -35,7 +41,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
           </Link>
         )}
       </nav>
-      <DayView day={day} target={target} />
+      <DayView day={day} target={target} activity={activity} weightKg={weightKg} />
     </>
   );
 }

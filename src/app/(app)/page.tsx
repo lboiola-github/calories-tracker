@@ -3,6 +3,7 @@ import { DayView } from "@/components/day/day-view";
 import { SettingsIcon } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
+import { loadDayActivity, weightForDate } from "@/lib/data/activity";
 import { loadDay } from "@/lib/data/day";
 import { loadMetabolicState, targetFor } from "@/lib/data/metabolism";
 import { formatLongDate } from "@/lib/dates";
@@ -12,7 +13,12 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const supabase = await createClient();
   const state = await loadMetabolicState(supabase, user.id);
-  const [target, day] = await Promise.all([targetFor(supabase, state.today), loadDay(supabase, state.today)]);
+  const [target, day, activity, weightKg] = await Promise.all([
+    targetFor(supabase, state.today),
+    loadDay(supabase, state.today),
+    loadDayActivity(supabase, state.today),
+    weightForDate(supabase, state.today),
+  ]);
 
   return (
     <>
@@ -25,7 +31,7 @@ export default async function DashboardPage() {
           </Link>
         }
       />
-      <DayView day={day} target={target} />
+      <DayView day={day} target={target} activity={activity} weightKg={weightKg} />
       {target == null && (
         <Link
           href="/ajustes"

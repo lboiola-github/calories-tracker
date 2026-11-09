@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { authenticate, type AuthState } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 const initial: AuthState = { error: null, info: null, email: "" };
 
@@ -50,6 +51,7 @@ export function LoginForm() {
         disabled={pending}
         className="h-13 w-full rounded-2xl bg-accent text-[17px] font-semibold text-accent-ink transition-opacity disabled:opacity-60"
       >
+        {pending && <Spinner className="mr-2 size-4 align-[-2px]" />}
         {pending ? "Un momento…" : isSignup ? "Crear cuenta" : "Iniciar sesión"}
       </button>
 
